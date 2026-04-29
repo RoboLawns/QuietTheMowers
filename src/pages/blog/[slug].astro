@@ -1,0 +1,65 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { blogPosts } from '../../utils/blog';
+
+export function getStaticPaths() {
+  return blogPosts.filter(p => p.content).map(p => ({ params: { slug: p.slug } }));
+}
+
+const { slug } = Astro.params;
+const post = blogPosts.find(p => p.slug === slug && p.content);
+---
+
+<Layout title={post?.title ?? 'Blog'} description={post?.description ?? 'Blog article.'} ogType="article">
+  {post ? (
+    <article class="section">
+      <div class="container-narrow">
+        <a href="/blog" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+          &larr; All Posts
+        </a>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+          {post.tags.map(tag => (
+            <span class="text-xs bg-earth-100 text-earth-600 px-2 py-0.5 rounded-full">{tag}</span>
+          ))}
+        </div>
+
+        <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 mb-4">
+          {post.title}
+        </h1>
+
+        <div class="flex items-center gap-2 text-sm text-earth-400 mb-10">
+          <span>{post.author}</span>
+          <span>&middot;</span>
+          <time datetime={post.pubDate}>
+            {new Date(post.pubDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </time>
+        </div>
+
+        <div class="prose mx-auto">
+          {post.content.split('\n').map(line => {
+            if (line.startsWith('## ')) return <h2>{line.replace('## ', '')}</h2>;
+            if (line.startsWith('1. ') || line.startsWith('2. ') || line.startsWith('3. ') || line.startsWith('4. ') || line.startsWith('5. ')) {
+              return <li>{line.replace(/^\d+\.\s/, '')}</li>;
+            }
+            if (line.startsWith('- ')) return <li>{line.replace('- ', '')}</li>;
+            if (line.trim() === '') return <br />;
+            return <p>{line}</p>;
+          })}
+        </div>
+
+        <div class="mt-12 pt-8 border-t border-earth-200 flex flex-col sm:flex-row items-center gap-4">
+          <a href="/campaigns/new" class="btn-primary">Start Your Own Campaign</a>
+          <a href="/blog" class="btn-secondary">More Stories</a>
+        </div>
+      </div>
+    </article>
+  ) : (
+    <section class="section">
+      <div class="container-narrow text-center">
+        <h1 class="text-4xl font-display font-bold text-brand-900 mb-4">Post Not Found</h1>
+        <p class="text-earth-500"><a href="/blog" class="text-brand-600 hover:text-brand-800">Browse the blog</a>.</p>
+      </div>
+    </section>
+  )}
+</Layout>

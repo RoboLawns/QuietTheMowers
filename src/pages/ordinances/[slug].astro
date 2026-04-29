@@ -1,0 +1,77 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { ordinances, typeLabels, jurisdictionLabels } from '../../utils/ordinances';
+
+export function getStaticPaths() {
+  return ordinances.filter(o => o.fullText).map(o => ({ params: { slug: o.slug } }));
+}
+
+const { slug } = Astro.params;
+const ordinance = ordinances.find(o => o.slug === slug && o.fullText);
+---
+
+<Layout title={ordinance?.title ?? 'Ordinance'} description={ordinance?.summary ?? 'Ordinance detail.'}>
+  {ordinance ? (
+    <article class="section">
+      <div class="container-narrow">
+        <a href="/ordinances" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+          &larr; Ordinance Library
+        </a>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+          <span class="text-xs bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full font-medium">
+            {jurisdictionLabels[ordinance.jurisdictionType]}
+          </span>
+          <span class="text-xs bg-earth-100 text-earth-600 px-2.5 py-1 rounded-full font-medium">
+            {typeLabels[ordinance.ordinanceType]}
+          </span>
+          {ordinance.featured && (
+            <span class="text-xs bg-accent-100 text-accent-700 px-2.5 py-1 rounded-full font-medium">
+              Featured
+            </span>
+          )}
+        </div>
+
+        <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 mb-4">
+          {ordinance.title}
+        </h1>
+
+        <p class="text-xl text-earth-500 mb-8">
+          {ordinance.jurisdictionName} &middot; Effective {new Date(ordinance.effectiveDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+
+        <div class="prose mx-auto">
+          {ordinance.fullText.split('\n').map(line => {
+            if (line.startsWith('## ')) return <h2>{line.replace('## ', '')}</h2>;
+            if (line.startsWith('### ')) return <h3>{line.replace('### ', '')}</h3>;
+            if (line.startsWith('> ')) return <blockquote><p>{line.replace('> ', '')}</p></blockquote>;
+            if (line.startsWith('- ')) return <li>{line.replace('- ', '')}</li>;
+            if (line.startsWith('1. ') || line.startsWith('2. ') || line.startsWith('3. ') || line.startsWith('4. ') || line.startsWith('5. ')) {
+              return <li>{line.replace(/^\d+\.\s/, '')}</li>;
+            }
+            if (line.trim() === '') return <br />;
+            return <p>{line}</p>;
+          })}
+        </div>
+
+        <div class="mt-12 pt-8 border-t border-earth-200 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <a href={`/campaigns/new?template=${slug}`} class="btn-primary">
+            Use This as a Template
+          </a>
+          {ordinance.sourceUrl && (
+            <a href={ordinance.sourceUrl} class="btn-secondary" target="_blank" rel="noopener">
+              View Original Source &rarr;
+            </a>
+          )}
+        </div>
+      </div>
+    </article>
+  ) : (
+    <section class="section">
+      <div class="container-narrow text-center">
+        <h1 class="text-4xl font-display font-bold text-brand-900 mb-4">Ordinance Not Found</h1>
+        <p class="text-earth-500"><a href="/ordinances" class="text-brand-600 hover:text-brand-800">Browse the library</a>.</p>
+      </div>
+    </section>
+  )}
+</Layout>

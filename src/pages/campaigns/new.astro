@@ -1,0 +1,150 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../utils/auth';
+
+export const prerender = false;
+
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+
+// Redirect to sign-in if not authenticated
+if (!user) {
+  return Astro.redirect('/api/auth/sign-in?redirect=/campaigns/new');
+}
+
+const templateOptions = [
+  { value: 'hours_restriction', label: 'Restrict Gas Equipment Hours', desc: 'Limit the hours when gas-powered equipment can be used in your area.' },
+  { value: 'gas_blower_ban', label: 'Ban Gas Leaf Blowers', desc: 'Prohibit the sale and/or use of gas-powered leaf blowers.' },
+  { value: 'hoa_rules', label: 'HOA Rule Update', desc: 'Change your HOA rules to require or incentivize electric equipment.' },
+  { value: 'custom', label: 'Custom Campaign', desc: 'Start from scratch. Define your own goal and target.' },
+];
+
+const jurisdictionOptions = [
+  { value: 'city', label: 'City' },
+  { value: 'hoa', label: 'HOA' },
+  { value: 'county', label: 'County' },
+  { value: 'state', label: 'State' },
+];
+---
+
+<Layout title="Start a Campaign" description="Create a new campaign to make your neighborhood quieter. Pick a template, set a goal, and tell your story." user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <a href="/campaigns" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; Back to Campaigns
+    </a>
+
+    <div class="text-center mb-12">
+      <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 leading-tight mb-4">
+        Start a Campaign
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        Pick a template, define your goal, set your location, and write your story.
+        Should take about 15 minutes.
+      </p>
+    </div>
+
+    <form action="/api/campaigns/create" method="POST" class="space-y-8">
+      <!-- Step 1: Template -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-1">Step 1: Pick a Template</h2>
+        <p class="text-sm text-earth-500 mb-6">Choose the type of campaign that matches your goal.</p>
+
+        <div class="grid sm:grid-cols-2 gap-3">
+          {templateOptions.map(t => (
+            <label class={`block rounded-xl border-2 p-4 cursor-pointer transition-all hover:border-brand-300 has-checked:border-brand-500 has-checked:bg-brand-50`}>
+              <input type="radio" name="template_type" value={t.value} required class="sr-only" />
+              <span class="block font-semibold text-brand-900 text-sm">{t.label}</span>
+              <span class="block text-xs text-earth-500 mt-1">{t.desc}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <!-- Step 2: Location -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-1">Step 2: Set Location</h2>
+        <p class="text-sm text-earth-500 mb-6">Where is this campaign targeting? City council, HOA board, etc.</p>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label for="target_jurisdiction" class="block text-sm font-medium text-earth-700 mb-1.5">Jurisdiction Type *</label>
+            <select id="target_jurisdiction" name="target_jurisdiction" required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <option value="">Select...</option>
+              {jurisdictionOptions.map(j => (
+                <option value={j.value}>{j.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label for="target_name" class="block text-sm font-medium text-earth-700 mb-1.5">Target Name *</label>
+            <input type="text" id="target_name" name="target_name" required placeholder='e.g. "Boulder City Council" or "Pinewood HOA"' class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="location_city" class="block text-sm font-medium text-earth-700 mb-1.5">City</label>
+            <input type="text" id="location_city" name="location_city" placeholder="Your city" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="location_state" class="block text-sm font-medium text-earth-700 mb-1.5">State</label>
+            <input type="text" id="location_state" name="location_state" placeholder="e.g. CO" maxlength="2" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Goal -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-1">Step 3: Set the Goal</h2>
+        <p class="text-sm text-earth-500 mb-6">How many signatures do you need and when do you need them?</p>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label for="goal_signatures" class="block text-sm font-medium text-earth-700 mb-1.5">Signature Goal *</label>
+            <input type="number" id="goal_signatures" name="goal_signatures" required min="10" value="100" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="goal_deadline" class="block text-sm font-medium text-earth-700 mb-1.5">Deadline</label>
+            <input type="date" id="goal_deadline" name="goal_deadline" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Story -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-1">Step 4: Write the Story</h2>
+        <p class="text-sm text-earth-500 mb-6">Tell people why this campaign matters. Be specific about what you want and why.</p>
+
+        <div>
+          <label for="title" class="block text-sm font-medium text-earth-700 mb-1.5">Campaign Title *</label>
+          <input type="text" id="title" name="title" required placeholder="A clear, compelling title for your campaign" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-4" />
+        </div>
+        <div>
+          <label for="story_markdown" class="block text-sm font-medium text-earth-700 mb-1.5">Campaign Story (Markdown supported)</label>
+          <textarea id="story_markdown" name="story_markdown" rows={10} required placeholder="## The Problem&#10;&#10;Describe what's happening in your neighborhood.&#10;&#10;## What We Want&#10;&#10;Be specific about the change you're seeking.&#10;&#10;## Why It Matters&#10;&#10;Explain why this change is important." class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm resize-y"></textarea>
+        </div>
+      </div>
+
+      <!-- Step 5: Slug -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-1">Step 5: URL Slug</h2>
+        <p class="text-sm text-earth-500 mb-6">This will be your campaign's web address: quietthemowers.com/campaigns/your-slug</p>
+
+        <div>
+          <label for="slug" class="block text-sm font-medium text-earth-700 mb-1.5">URL Slug *</label>
+          <input type="text" id="slug" name="slug" required pattern="[a-z0-9-]+" placeholder="your-campaign-name" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          <p class="text-xs text-earth-400 mt-1">Lowercase letters, numbers, and hyphens only.</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <button type="submit" class="btn-primary text-lg px-8 py-4">
+          Create Campaign
+        </button>
+        <a href="/campaigns" class="btn-secondary text-lg px-8 py-4">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</section>
+
+</Layout>

@@ -1,0 +1,123 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getDBFromLocals } from '../../../utils/db';
+
+export const prerender = false;
+
+const db = getDBFromLocals(Astro.locals);
+const { username } = Astro.params;
+
+// Find user by display_name slug
+const profileUser = db.prepare(`
+  SELECT u.*,
+    (SELECT COUNT(*) FROM campaigns WHERE organizer_id = u.id) as campaigns_started,
+    (SELECT COUNT(*) FROM campaigns WHERE organizer_id = u.id AND status = 'won') as campaigns_won,
+    (SELECT COUNT(*) FROM signatures s JOIN campaigns c ON s.campaign_id = c.id WHERE c.organizer_id = u.id) as signatures_gathered,
+    (SELECT COUNT(*) FROM testimonials WHERE user_id = u.id AND status = 'approved') as testimonials_written,
+    (SELECT COUNT(*) FROM measurements WHERE user_id = u.id) as measurements_uploaded
+  FROM users u
+  WHERE LOWER(REPLACE(u.display_name, ' ', '-')) = LOWER(?)
+`).bind(username).first() as any;
+
+if (!profileUser) {
+  return new Response(null, { status: 302, headers: { Location: '/' } });
+}
+
+const campaigns = db.prepare(`
+  SELECT c.*,
+    (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
+  FROM campaigns c
+  WHERE c.organizer_id = ? AND c.status IN ('active', 'won')
+  ORDER BY c.created_at DESC
+`).bind(profileUser.id).all();
+
+// Compute badges
+const badges: { name: string; emoji: string; earned: boolean; description: string }[] = [
+  { name: 'First Campaign', emoji: '🌱', earned: profileUser.campaigns_started >= 1, description: 'Started your first campaign' },
+  { name: 'First Win', emoji: '🏆', earned: profileUser.campaigns_won >= 1, description: 'Won a campaign' },
+  { name: '1,000 Signatures', emoji: '✍️', earned: profileUser.signatures_gathered >= 1000, description: 'Gathered 1,000+ signatures across campaigns' },
+  { name: '500 Signatures', emoji: '📋', earned: profileUser.signatures_gathered >= 500, description: 'Gathered 500+ signatures' },
+  { name: 'First Measurement', emoji: '📊', earned: profileUser.measurements_uploaded >= 1, description: 'Uploaded your first noise measurement' },
+  { name: 'Storyteller', emoji: '📖', earned: profileUser.testimonials_written >= 1, description: 'Shared your quiet morning story' },
+  { name: 'Movement Founder', emoji: '⭐', earned: profileUser.role === 'admin', description: 'Early supporter and platform contributor' },
+];
+
+const earnedBadges = badges.filter(b => b.earned);
+---
+
+<Layout title={`${profileUser.display_name || 'Organizer'}'s Profile`} description={`${profileUser.display_name}'s campaigns and impact.`}>
+
+<section class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-10">
+      <div class="w-20 h-20 bg-brand-100 rounded-full flex items-center justify-center text-brand-700 font-bold text-2xl mx-auto mb-4">
+        {(profileUser.display_name || 'O').charAt(0).toUpperCase()}
+      </div>
+      <h1 class="text-3xl font-display font-bold text-brand-900 mb-2">{profileUser.display_name || 'Organizer'}</h1>
+      {profileUser.location_city && (
+        <p class="text-earth-500">{profileUser.location_city}{profileUser.location_state ? `, ${profileUser.location_state}` : ''}</p>
+      )}
+      {profileUser.bio && <p class="text-earth-600 mt-3 max-w-lg mx-auto">{profileUser.bio}</p>}
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+      {[
+        { label: 'Campaigns', value: profileUser.campaigns_started || 0 },
+        { label: 'Wins', value: profileUser.campaigns_won || 0 },
+        { label: 'Signatures', value: profileUser.signatures_gathered || 0 },
+        { label: 'Measurements', value: profileUser.measurements_uploaded || 0 },
+      ].map(s => (
+        <div class="bg-white border border-earth-200 rounded-xl p-3 text-center">
+          <div class="text-2xl font-display font-bold text-brand-600">{s.value}</div>
+          <div class="text-xs text-earth-500">{s.label}</div>
+        </div>
+      ))}
+    </div>
+
+    {earnedBadges.length > 0 && (
+      <div class="mb-10">
+        <h2 class="text-lg font-display font-bold text-brand-900 mb-4">Badges</h2>
+        <div class="flex flex-wrap gap-3">
+          {badges.map(b => {
+            const earned = b.earned;
+            return (
+              <div class={`rounded-xl px-4 py-3 text-center border ${earned ? 'bg-white border-brand-200' : 'bg-earth-50 border-earth-200 opacity-40'}`} title={b.description}>
+                <div class="text-2xl">{b.emoji}</div>
+                <div class="text-[10px] font-medium mt-1 text-earth-600">{b.name}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Campaigns</h2>
+    {Array.isArray(campaigns.results) && campaigns.results.length > 0 ? (
+      <div class="space-y-4">
+        {campaigns.results.map((c: any) => (
+          <a href={`/campaigns/${c.slug}`} class="block bg-white border border-earth-200 rounded-xl p-5 hover:border-brand-300 transition-all">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="font-display font-bold text-brand-900">{c.title}</h3>
+                  <span class={`text-xs px-2 py-0.5 rounded-full ${c.status === 'won' ? 'bg-accent-100 text-accent-700' : 'bg-green-100 text-green-700'}`}>
+                    {c.status === 'won' ? 'Won!' : 'Active'}
+                  </span>
+                </div>
+                <p class="text-sm text-earth-500">{c.target_name} · {c.location_city}, {c.location_state}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="text-lg font-bold text-brand-600">{c.signature_count || 0}</div>
+                <div class="text-xs text-earth-400">signatures</div>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <p class="text-earth-400 text-sm">No public campaigns yet.</p>
+    )}
+  </div>
+</section>
+
+</Layout>

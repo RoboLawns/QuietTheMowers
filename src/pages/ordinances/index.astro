@@ -1,0 +1,139 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { ordinances, typeLabels, jurisdictionLabels } from '../../utils/ordinances';
+---
+
+<Layout
+  title="Ordinance Library"
+  description="Searchable database of real noise and gas-equipment ordinances from cities, counties, and HOAs. Use them as templates for your own campaign."
+>
+
+<section class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-16">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">Ordinance Library</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-6">
+        Real Laws That Passed
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        A searchable library of noise and gas-equipment ordinances from cities, counties, and HOAs.
+        Use them as templates for your own campaign.
+      </p>
+    </div>
+
+    <div class="bg-white border border-earth-200 rounded-2xl p-6 mb-10">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex-1">
+          <input
+            type="search"
+            id="ordinance-search"
+            placeholder="Search by city, type, or keyword..."
+            class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          />
+        </div>
+        <select id="type-filter" class="rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <option value="">All Types</option>
+          <option value="gas_blower_ban">Gas Blower Ban</option>
+          <option value="hours_restriction">Hours Restriction</option>
+          <option value="noise_limit">Noise Limit</option>
+          <option value="other">Other</option>
+        </select>
+        <select id="jurisdiction-filter" class="rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <option value="">All Jurisdictions</option>
+          <option value="city">City</option>
+          <option value="hoa">HOA</option>
+          <option value="county">County</option>
+          <option value="state">State</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="ordinance-list" class="space-y-4">
+      {ordinances.map(o => (
+        <a
+          href={`/ordinances/${o.slug}`}
+          class="block bg-white border border-earth-200 rounded-xl p-6 hover:border-brand-300 hover:shadow-sm transition-all"
+          data-type={o.ordinanceType}
+          data-jurisdiction={o.jurisdictionType}
+          data-search-text={`${o.title} ${o.jurisdictionName} ${o.state} ${typeLabels[o.ordinanceType]}`}
+        >
+          <div class="flex flex-wrap items-start justify-between gap-3 mb-2">
+            <h3 class="font-display font-bold text-brand-900 text-lg">{o.title}</h3>
+            <div class="flex gap-2">
+              <span class="text-xs bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full font-medium">
+                {jurisdictionLabels[o.jurisdictionType]}
+              </span>
+              <span class="text-xs bg-earth-100 text-earth-600 px-2.5 py-1 rounded-full font-medium">
+                {typeLabels[o.ordinanceType]}
+              </span>
+            </div>
+          </div>
+          <p class="text-earth-500 text-sm mb-3">
+            <span class="font-medium text-earth-700">{o.jurisdictionName}</span>
+            &middot; Effective {new Date(o.effectiveDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+          <p class="text-earth-600 text-sm">{o.summary}</p>
+          <span class="inline-flex items-center gap-1 text-brand-600 text-sm font-medium mt-3">
+            View Full Ordinance <span aria-hidden="true">&rarr;</span>
+          </span>
+        </a>
+      ))}
+    </div>
+
+    <div id="no-results" class="hidden text-center py-16">
+      <p class="text-xl text-earth-400">No ordinances match your filters.</p>
+      <p class="text-earth-500 mt-2">Try a different search or browse all ordinances above.</p>
+    </div>
+
+    <div class="mt-16 bg-brand-50 rounded-2xl p-10 text-center">
+      <h2 class="text-2xl font-display font-bold text-brand-900 mb-4">Use These as Templates</h2>
+      <p class="text-earth-600 mb-8 max-w-lg mx-auto">
+        Every ordinance in this library is real and passed. When you start a campaign,
+        we'll help you adapt the right template for your jurisdiction.
+      </p>
+      <a href="/campaigns/new" class="btn-primary text-lg px-8 py-4">
+        Start a Campaign
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  function filterOrdinances() {
+    const searchTerm = (document.getElementById('ordinance-search') as HTMLInputElement)?.value.toLowerCase() ?? '';
+    const typeFilter = (document.getElementById('type-filter') as HTMLSelectElement)?.value;
+    const jurisdictionFilter = (document.getElementById('jurisdiction-filter') as HTMLSelectElement)?.value;
+
+    const items = document.querySelectorAll('#ordinance-list > a');
+    let visibleCount = 0;
+
+    items.forEach(item => {
+      const el = item as HTMLElement;
+      const searchText = el.dataset.searchText?.toLowerCase() ?? '';
+      const type = el.dataset.type;
+      const jurisdiction = el.dataset.jurisdiction;
+
+      const matchesSearch = searchText.includes(searchTerm);
+      const matchesType = !typeFilter || type === typeFilter;
+      const matchesJurisdiction = !jurisdictionFilter || jurisdiction === jurisdictionFilter;
+
+      if (matchesSearch && matchesType && matchesJurisdiction) {
+        el.classList.remove('hidden');
+        visibleCount++;
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+
+    const noResults = document.getElementById('no-results');
+    if (noResults) {
+      noResults.classList.toggle('hidden', visibleCount > 0);
+    }
+  }
+
+  document.getElementById('ordinance-search')?.addEventListener('input', filterOrdinances);
+  document.getElementById('type-filter')?.addEventListener('change', filterOrdinances);
+  document.getElementById('jurisdiction-filter')?.addEventListener('change', filterOrdinances);
+</script>
+
+</Layout>

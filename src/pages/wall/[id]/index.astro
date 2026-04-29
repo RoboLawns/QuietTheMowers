@@ -1,0 +1,108 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../../utils/auth';
+import { getDBFromLocals } from '../../../utils/db';
+
+export const prerender = false;
+
+const db = getDBFromLocals(Astro.locals);
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const { id } = Astro.params;
+
+const testimonial = db.prepare(`
+  SELECT t.*, u.display_name as author_name
+  FROM testimonials t
+  LEFT JOIN users u ON t.user_id = u.id
+  WHERE t.id = ? AND t.status = 'approved'
+`).bind(id).first() as any;
+
+if (!testimonial) {
+  return new Response(null, { status: 302, headers: { Location: '/wall' } });
+}
+
+const comments = db.prepare(`
+  SELECT c.*, us.display_name as author_name
+  FROM comments c
+  LEFT JOIN users us ON c.user_id = us.id
+  WHERE c.parent_type = 'testimonial' AND c.parent_id = ? AND c.status = 'visible'
+  ORDER BY c.created_at DESC
+`).bind(id).all();
+---
+
+<Layout title={testimonial.title} description={testimonial.title} user={user} ogType="article">
+  <article class="section">
+    <div class="container-narrow">
+      <a href="/wall" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+        &larr; Testimonial Wall
+      </a>
+
+      {testimonial.featured ? (
+        <span class="inline-block text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full font-medium mb-4">Featured Story</span>
+      ) : null}
+
+      <h1 class="text-4xl font-display font-bold text-brand-900 mb-6">{testimonial.title}</h1>
+
+      <div class="flex items-center gap-3 mb-8">
+        <div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
+          {(testimonial.display_name || 'A').charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div class="font-semibold text-earth-900">{testimonial.display_name}</div>
+          <div class="text-sm text-earth-500">
+            {testimonial.location_city}{testimonial.location_state ? `, ${testimonial.location_state}` : ''}
+            {testimonial.mower_brand ? ` · Switched to ${testimonial.mower_brand}` : ''}
+          </div>
+          <div class="text-xs text-earth-400">{new Date(testimonial.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-earth-200 rounded-2xl p-8 mb-8">
+        <div class="prose">
+          {testimonial.body_markdown.split('\n').map((line: string) => {
+            if (line.startsWith('## ')) return <h2>{line.replace('## ', '')}</h2>;
+            if (line.trim() === '') return <br />;
+            return <p>{line}</p>;
+          })}
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 mb-8">
+        <a href={`/campaigns?state=${testimonial.location_state}`} class="btn-primary text-sm">
+          Find Campaigns in {testimonial.location_state || 'Your Area'}
+        </a>
+        <button onclick={`navigator.clipboard.writeText('${Astro.url.href}')`} class="btn-secondary text-sm">
+          Copy Link
+        </button>
+      </div>
+
+      <!-- Comments -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Comments ({comments.results?.length || 0})</h2>
+        {user ? (
+          <form action={`/api/testimonials/${id}/comment`} method="POST" class="mb-8">
+            <textarea name="body" rows={3} required placeholder="Add a comment..." class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y text-sm mb-3"></textarea>
+            <button type="submit" class="btn-primary text-sm px-4 py-2">Post Comment</button>
+          </form>
+        ) : (
+          <div class="bg-earth-50 rounded-xl p-4 mb-8 text-center">
+            <p class="text-sm text-earth-500"><a href="/api/auth/sign-in" class="text-brand-600 font-medium">Sign in</a> to comment.</p>
+          </div>
+        )}
+        {Array.isArray(comments.results) && comments.results.map((c: any) => (
+          <div class="flex gap-3 pb-4 border-b border-earth-100 last:border-0">
+            <div class="w-8 h-8 rounded-full bg-earth-100 flex items-center justify-center text-earth-500 font-bold text-xs shrink-0">
+              {(c.author_name || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-semibold text-earth-900 text-sm">{c.author_name}</span>
+                <span class="text-[10px] text-earth-400">{new Date(c.created_at).toLocaleDateString()}</span>
+              </div>
+              <p class="text-sm text-earth-700">{c.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </article>
+</Layout>

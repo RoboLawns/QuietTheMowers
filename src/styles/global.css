@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #f0f7ed;
+  --color-brand-100: #dfeed9;
+  --color-brand-200: #bfdeb7;
+  --color-brand-300: #95c589;
+  --color-brand-400: #6da85f;
+  --color-brand-500: #4e8c42;
+  --color-brand-600: #3b6e31;
+  --color-brand-700: #2f5627;
+  --color-brand-800: #284621;
+  --color-brand-900: #233b1e;
+  --color-brand-950: #0e1f0c;
+
+  --color-accent-50: #fffbeb;
+  --color-accent-100: #fef3c7;
+  --color-accent-200: #fde68a;
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+  --color-accent-700: #b45309;
+  --color-accent-800: #92400e;
+  --color-accent-900: #78350f;
+  --color-accent-950: #451a03;
+
+  --color-earth-50: #f8f6f2;
+  --color-earth-100: #f0ece4;
+  --color-earth-200: #e0d7c8;
+  --color-earth-300: #ccbda5;
+  --color-earth-400: #b8a082;
+  --color-earth-500: #a98d6b;
+  --color-earth-600: #9c7d5f;
+  --color-earth-700: #826750;
+  --color-earth-800: #6b5545;
+  --color-earth-900: #58473a;
+  --color-earth-950: #2f251e;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Georgia', 'Times New Roman', serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-earth-50 text-earth-900 font-sans antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display font-bold text-brand-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-6 py-3 text-white font-semibold
+           hover:bg-brand-700 active:bg-brand-800 transition-colors duration-200
+           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-brand-700 font-semibold
+           border-2 border-brand-300 hover:border-brand-500 hover:bg-brand-50
+           active:bg-brand-100 transition-colors duration-200
+           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500;
+  }
+  .btn-accent {
+    @apply inline-flex items-center justify-center rounded-lg bg-accent-500 px-6 py-3 text-accent-950 font-semibold
+           hover:bg-accent-400 active:bg-accent-600 transition-colors duration-200
+           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500;
+  }
+  .prose {
+    @apply max-w-none text-earth-800 leading-relaxed;
+  }
+  .prose h1 { @apply text-4xl font-display font-bold text-brand-900 mt-12 mb-6; }
+  .prose h2 { @apply text-3xl font-display font-bold text-brand-900 mt-10 mb-4; }
+  .prose h3 { @apply text-2xl font-display font-semibold text-brand-800 mt-8 mb-3; }
+  .prose p { @apply mb-6 text-lg; }
+  .prose a { @apply text-brand-600 underline hover:text-brand-800; }
+  .prose ul { @apply list-disc pl-6 mb-6 space-y-2; }
+  .prose ol { @apply list-decimal pl-6 mb-6 space-y-2; }
+  .prose blockquote { @apply border-l-4 border-brand-300 pl-6 italic text-earth-600 my-8; }
+  .prose img { @apply rounded-xl my-8; }
+  .section {
+    @apply py-16 md:py-24;
+  }
+  .container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .container-narrow {
+    @apply mx-auto max-w-3xl px-4 sm:px-6 lg:px-8;
+  }
+}

@@ -1,0 +1,56 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { blogPosts } from '../../utils/blog';
+---
+
+<Layout
+  title="Blog"
+  description="Movement news, wins, profiles, studies, and campaign strategies from the #QuietTheMowers community."
+>
+
+<section class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-16">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">Blog</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-6">
+        Stories from the Movement
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        Wins, research, strategies, and profiles from organizers and communities making quiet mornings the norm.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      {blogPosts.map(post => (
+        <a
+          href={`/blog/${post.slug}`}
+          class={`block bg-white border border-earth-200 rounded-xl overflow-hidden hover:border-brand-300 hover:shadow-sm transition-all ${post.featured ? 'md:col-span-2' : ''}`}
+        >
+          <div class="p-6">
+            <div class="flex flex-wrap gap-2 mb-3">
+              {post.tags.map(tag => (
+                <span class="text-xs bg-earth-100 text-earth-600 px-2 py-0.5 rounded-full">{tag}</span>
+              ))}
+              {post.featured && (
+                <span class="text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full font-medium">Featured</span>
+              )}
+            </div>
+            <h2 class={`font-display font-bold text-brand-900 hover:text-brand-700 transition-colors ${post.featured ? 'text-2xl' : 'text-xl'} mb-2`}>
+              {post.title}
+            </h2>
+            <p class="text-earth-500 text-sm mb-3">{post.description}</p>
+            <div class="flex items-center gap-2 text-xs text-earth-400">
+              <span>{post.author}</span>
+              <span>&middot;</span>
+              <time datetime={post.pubDate}>
+                {new Date(post.pubDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </time>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+</Layout>

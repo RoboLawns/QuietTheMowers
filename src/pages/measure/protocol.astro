@@ -1,0 +1,122 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="Measurement Protocol"
+  description="The official Quiet The Mowers measurement protocol: how to correctly measure noise from lawn equipment for advocacy and campaign use."
+>
+
+<article class="section">
+  <div class="container-narrow">
+    <a href="/measure" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; Back to Measure
+    </a>
+
+    <div class="text-center mb-12">
+      <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 leading-tight mb-4">
+        The Official<br />Measurement Protocol
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        How to measure lawn equipment noise correctly. Follow this protocol and your data will be campaign-ready.
+      </p>
+    </div>
+
+    <div class="prose mx-auto">
+      <h2>Equipment You'll Need</h2>
+      <ul>
+        <li>A sound level meter (Class 2 recommended; we rent them at /measure/rent)</li>
+        <li><strong>OR</strong> a smartphone with a calibrated app (see /measure/buy for recommendations)</li>
+        <li>A tape measure or laser distance measurer</li>
+        <li>A notebook or the measurement form (printable PDF linked below)</li>
+        <li>Optional: a tripod for the meter, a camera for photo documentation</li>
+      </ul>
+
+      <h2>Step 1: Choose Your Measurement Location</h2>
+      <p>Measure from a location that represents typical exposure. For the strongest data, measure from multiple positions:</p>
+      <ul>
+        <li><strong>Property line</strong> — The boundary between your property and the noise source</li>
+        <li><strong>Indoor equivalent</strong> — A window facing the noise source (note: indoor readings are typically 10–15 dB lower than outdoor)</li>
+        <li><strong>Multiple positions</strong> — For stronger data, measure from 2–3 positions (e.g., property line, 50 ft away, inside near an open window)</li>
+      </ul>
+
+      <h2>Step 2: Set Up Your Equipment</h2>
+      <ul>
+        <li>Place the sound level meter on a tripod at <strong>ear height (approx. 5 ft / 1.5 m)</strong> above ground</li>
+        <li>Point the microphone directly toward the noise source</li>
+        <li>Set the meter to <strong>A-weighting (dBA)</strong> and <strong>Slow response</strong></li>
+        <li>If using a smartphone app, calibrate before each session using the app's built-in calibration tool</li>
+        <li>Start with the meter in the <strong>MAX</strong> or recording mode to capture peak levels</li>
+      </ul>
+
+      <h2>Step 3: Record Your Measurements</h2>
+      <p>For each noise event, record all of the following:</p>
+
+      <div class="not-prose my-8 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b-2 border-brand-200 text-left">
+              <th class="py-3 pr-4 font-semibold text-brand-900">Field</th>
+              <th class="py-3 font-semibold text-brand-900">Description</th>
+            </tr>
+          </thead>
+          <tbody class="text-earth-700">
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Date</td><td class="py-2">YYYY-MM-DD format</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Time</td><td class="py-2">Local time (HH:MM), note AM/PM</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Duration</td><td class="py-2">How long the equipment ran (minutes)</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Equipment type</td><td class="py-2">Gas mower, leaf blower, string trimmer, etc.</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Peak dB(A)</td><td class="py-2">The highest reading during the event</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Average dB(A)</td><td class="py-2">Sustained level (if your meter records this)</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Background noise</td><td class="py-2">dB level when equipment is off (baseline)</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Distance from source</td><td class="py-2">Estimated or measured in feet</td></tr>
+            <tr class="border-b border-earth-200"><td class="py-2 pr-4 font-medium">Weather</td><td class="py-2">Wind speed (affects readings), temperature</td></tr>
+            <tr><td class="py-2 pr-4 font-medium">Notes</td><td class="py-2">Anything unusual: multiple machines, echoes, etc.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Step 4: Tips for Good Data</h2>
+      <ul>
+        <li><strong>Measure at different times of day</strong> and on different days to show patterns</li>
+        <li><strong>Record baseline readings</strong> — what does your neighborhood sound like when no equipment is running?</li>
+        <li><strong>Take photos</strong> of the setup showing the meter position and the noise source</li>
+        <li><strong>Record audio or video</strong> as supporting evidence (most smartphones do this well)</li>
+        <li><strong>Be consistent</strong> — use the same meter, same position, same settings each time</li>
+        <li><strong>Document everything</strong> — good notes make your data usable by campaigns and researchers</li>
+      </ul>
+
+      <h2>Step 5: Upload Your Data</h2>
+      <p>After collecting your measurements, go to /measure/upload to submit them. You can:</p>
+      <ul>
+        <li>Attach them to an existing campaign</li>
+        <li>Start a new campaign with your data</li>
+        <li>Save them as a personal record</li>
+        <li>Choose your privacy level: <strong>public</strong>, <strong>anonymous-public</strong> ("a user in 80303"), or <strong>private</strong></li>
+      </ul>
+
+      <div class="not-prose my-10 bg-accent-50 border border-accent-200 rounded-2xl p-6">
+        <h3 class="font-display font-bold text-accent-800 mb-2">Download the Printable PDF</h3>
+        <p class="text-sm text-earth-600 mb-4">Print this protocol and take it with you when you measure. Includes the full checklist and a blank recording table.</p>
+        <a href="/assets/measurement-protocol.pdf" class="btn-accent text-sm px-4 py-2">
+          Download PDF
+        </a>
+      </div>
+
+      <h2>Legal Note</h2>
+      <p>Measurements collected using this protocol are intended for advocacy and awareness purposes. They may not meet the standards required for legal evidence. If you need data that will hold up in court, consult with your campaign or a legal advisor about commissioning a certified acoustic assessment.</p>
+
+      <p>That said: for HOA meetings, city council presentations, and public advocacy, data collected using this protocol with a calibrated Class 2 meter has been sufficient in every campaign we've documented.</p>
+    </div>
+
+    <div class="mt-16 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a href="/measure/rent" class="btn-primary text-lg px-8 py-4">
+        Rent a Sound Meter
+      </a>
+      <a href="/measure/upload" class="btn-secondary text-lg px-8 py-4">
+        Upload Your Data
+      </a>
+    </div>
+  </div>
+</article>
+
+</Layout>

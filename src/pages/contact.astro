@@ -1,0 +1,131 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Contact"
+  description="Get in touch with Quiet The Mowers. Press inquiries, partnership requests, volunteer opportunities, and general questions."
+>
+
+<section class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-16">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">Contact</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-6">
+        Get in Touch
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        We'd love to hear from you. Whether you're a journalist, a potential partner, or just want to say hi.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-12">
+      <div>
+        <h2 class="text-2xl font-display font-bold text-brand-900 mb-6">Send a Message</h2>
+        <form action="/api/contact" method="POST" class="space-y-5">
+          <div>
+            <label for="name" class="block text-sm font-medium text-earth-700 mb-1.5">Name</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              required
+              class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              placeholder="Your name"
+            />
+          </div>
+          <div>
+            <label for="email" class="block text-sm font-medium text-earth-700 mb-1.5">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              placeholder="you@example.com"
+            />
+          </div>
+          <div>
+            <label for="subject" class="block text-sm font-medium text-earth-700 mb-1.5">Subject</label>
+            <select
+              id="subject"
+              name="subject"
+              class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            >
+              <option value="general">General Inquiry</option>
+              <option value="press">Press / Media</option>
+              <option value="partnership">Partnership</option>
+              <option value="volunteer">Volunteer / Contribute</option>
+              <option value="support">Technical Support</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label for="message" class="block text-sm font-medium text-earth-700 mb-1.5">Message</label>
+            <textarea
+              id="message"
+              name="message"
+              rows={5}
+              required
+              class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-y"
+              placeholder="Tell us what's on your mind..."
+            ></textarea>
+          </div>
+          <button type="submit" class="btn-primary w-full">
+            Send Message
+          </button>
+        </form>
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-display font-bold text-brand-900 mb-6">Other Ways to Reach Us</h2>
+
+        <div class="space-y-6">
+          <div class="bg-earth-50 rounded-xl p-6">
+            <h3 class="font-semibold text-brand-900 mb-2">Press Inquiries</h3>
+            <p class="text-sm text-earth-600 mb-3">
+              For media requests, interview opportunities, or press kit access.
+            </p>
+            <a href="mailto:press@quietthemowers.com" class="text-brand-600 font-medium text-sm hover:text-brand-800">
+              press@quietthemowers.com
+            </a>
+          </div>
+
+          <div class="bg-earth-50 rounded-xl p-6">
+            <h3 class="font-semibold text-brand-900 mb-2">Partnerships</h3>
+            <p class="text-sm text-earth-600 mb-3">
+              For organizations interested in collaborating, co-branding, or integrating with the platform.
+            </p>
+            <a href="mailto:partners@quietthemowers.com" class="text-brand-600 font-medium text-sm hover:text-brand-800">
+              partners@quietthemowers.com
+            </a>
+          </div>
+
+          <div class="bg-earth-50 rounded-xl p-6">
+            <h3 class="font-semibold text-brand-900 mb-2">Social Media</h3>
+            <p class="text-sm text-earth-600 mb-3">
+              Follow the movement and join the conversation.
+            </p>
+            <div class="flex gap-4">
+              <a href="https://x.com/QuietTheMowers" class="text-brand-600 font-medium text-sm hover:text-brand-800">X (Twitter)</a>
+              <a href="https://facebook.com/QuietTheMowers" class="text-brand-600 font-medium text-sm hover:text-brand-800">Facebook</a>
+              <a href="https://instagram.com/QuietTheMowers" class="text-brand-600 font-medium text-sm hover:text-brand-800">Instagram</a>
+            </div>
+          </div>
+
+          <div class="bg-earth-50 rounded-xl p-6">
+            <h3 class="font-semibold text-brand-900 mb-2">Report a Win</h3>
+            <p class="text-sm text-earth-600 mb-3">
+              Know about a city, HOA, or county that changed its rules? Help us keep the Wins Map current.
+            </p>
+            <a href="/wins" class="text-brand-600 font-medium text-sm hover:text-brand-800">
+              Submit a Win &rarr;
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</Layout>

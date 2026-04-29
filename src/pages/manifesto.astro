@@ -1,0 +1,106 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="The Manifesto"
+  description="The Quiet The Mowers manifesto: why we believe every neighborhood deserves quiet mornings, and what we're doing about it."
+  ogType="article"
+>
+
+<article class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-16">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">The Manifesto</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-6">
+        A Right to Quiet<br />Mornings
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        Gas-powered lawn equipment is the last unregulated noise pollutant in American neighborhoods.
+        It's time to change that.
+      </p>
+    </div>
+
+    <div class="prose mx-auto">
+      <h2>We Believe</h2>
+
+      <p>Every person has the right to a reasonable expectation of peace and quiet in their own home. The sound of birdsong. The rustle of leaves. The ability to think, to rest, to hear your own thoughts. These are not luxuries. They are the baseline of a livable neighborhood.</p>
+
+      <p>Gas-powered lawn equipment destroys this baseline. A single gas leaf blower can be heard from 300 feet away. A gas mower at the operator's ear registers 85-95 decibels &mdash; the same as a motorcycle at close range. Multiply that by every lawn service on every block, and Saturday morning becomes an industrial zone.</p>
+
+      <h2>We Know the Facts</h2>
+
+      <p>This is not a matter of preference. It's a matter of public health, environmental justice, and community well-being.</p>
+
+      <ul>
+        <li><strong>Hearing damage</strong> begins at sustained exposure above 70 dB. Gas mowers and blowers routinely exceed 85 dB at the user's ear and 65-75 dB at a neighbor's window.</li>
+        <li><strong>Air pollution</strong> from two-stroke engines is staggering. Running a gas leaf blower for one hour produces the same smog-forming emissions as driving a car for 1,100 miles. These engines are unregulated at the federal level.</li>
+        <li><strong>Noise pollution</strong> isn't just annoying &mdash; it raises blood pressure, disrupts sleep, impairs children's learning, and increases cardiovascular risk. The World Health Organization calls environmental noise the second-largest environmental health risk in Europe.</li>
+        <li><strong>Electric alternatives exist</strong> and are better in every measurable way: quieter, cleaner, cheaper to operate, and as effective for residential use.</li>
+      </ul>
+
+      <h2>We Demand</h2>
+
+      <ol>
+        <li><strong>Municipal ordinances</strong> that restrict gas-powered lawn equipment to reasonable hours, limit decibel levels, and phase in electric alternatives over time.</li>
+        <li><strong>HOA rule changes</strong> that allow &mdash; or better, require &mdash; electric equipment for lawn maintenance within the community.</li>
+        <li><strong>Transparency from lawn services</strong> about the equipment they use and the noise levels they produce, so homeowners can make informed choices.</li>
+        <li><strong>Incentives for electric conversion</strong> &mdash; rebate programs, trade-in events, and bulk-purchase discounts through municipalities and retailers.</li>
+        <li><strong>Recognition of quiet as a public good,</strong> not a luxury. Noise policy is health policy. It's time to regulate it accordingly.</li>
+      </ol>
+
+      <h2>We Recognize</h2>
+
+      <p>This is not about shaming neighbors or punishing lawn care workers. Landscaping professionals deserve safe, effective tools &mdash; and electric equipment protects their hearing, too. This is about transitioning to technology that works better for everyone: the homeowner, the worker, the neighbor, and the planet.</p>
+
+      <blockquote>
+        <p>The quiet revolution doesn't take anything away. It gives back mornings. It gives back health. It gives back the simple pleasure of hearing the wind in the trees.</p>
+        <p>&mdash; The Quiet The Mowers Manifesto</p>
+      </blockquote>
+
+      <h2>We Build</h2>
+
+      <p>This is not a petition you sign and forget. This is a platform that gives you everything you need to win:</p>
+
+      <ul>
+        <li>The petition templates, pre-written and customizable</li>
+        <li>The noise measurement protocol and device rental program</li>
+        <li>The ordinance library &mdash; real laws that have already passed</li>
+        <li>The council meeting prep wizard &mdash; walk in with speaker cards and data</li>
+        <li>The community of organizers who've done it and will help you do it too</li>
+      </ul>
+
+      <p>The book and course sell the dream. <strong>The platform delivers the change.</strong></p>
+
+      <h2>We Act</h2>
+
+      <p>This starts with you. Right where you live.</p>
+
+      <p>Sign a petition. Start one. Measure the noise on your street. Speak at a council meeting. Write a testimonial about your first quiet morning. Share the manifesto. Tell a neighbor.</p>
+
+      <p>Every neighborhood that changes its rules becomes proof that another neighborhood can too. This is how movements win: one block, one HOA, one city council meeting at a time.</p>
+
+      <p class="text-2xl font-display font-bold text-brand-700 mt-12 text-center">
+        Quiet mornings. Healthy neighborhoods.<br />It's time.
+      </p>
+    </div>
+
+    <div class="mt-16 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a href="/campaigns/new" class="btn-primary text-lg px-8 py-4">
+        Start a Campaign
+      </a>
+      <a href="/why" class="btn-secondary text-lg px-8 py-4">
+        See the Evidence
+      </a>
+    </div>
+
+    <div class="mt-12 flex justify-center gap-4">
+      <span class="text-earth-400 text-sm">Share:</span>
+      <a href={`https://x.com/intent/tweet?text=${encodeURIComponent("I just read the Quiet The Mowers manifesto. Quiet mornings shouldn't be a luxury. #QuietTheMowers")}&url=${encodeURIComponent(Astro.url.href)}`} class="text-earth-500 hover:text-brand-600 transition-colors text-sm" target="_blank">X</a>
+      <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(Astro.url.href)}`} class="text-earth-500 hover:text-brand-600 transition-colors text-sm" target="_blank">Facebook</a>
+      <button onclick={`navigator.clipboard.writeText('${Astro.url.href}')`} class="text-earth-500 hover:text-brand-600 transition-colors text-sm">Copy Link</button>
+    </div>
+  </div>
+</article>
+
+</Layout>

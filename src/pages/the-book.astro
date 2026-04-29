@@ -1,0 +1,118 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="The Book"
+  description="Quiet The Mowers: The Book &mdash; the definitive guide to reclaiming quiet mornings in your neighborhood."
+  ogType="book"
+>
+
+<article class="section">
+  <div class="container">
+    <div class="grid md:grid-cols-2 gap-16 items-center">
+      <div>
+        <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">The Book</p>
+        <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 leading-tight mb-6">
+          Quiet The Mowers:<br />
+          <span class="text-brand-600">A Manifesto for Quieter Neighborhoods</span>
+        </h1>
+        <p class="text-lg text-earth-600 mb-8 leading-relaxed">
+          The definitive guide to understanding why gas-powered lawn equipment is the last unregulated noise pollutant in America &mdash; and exactly what you can do about it in your own neighborhood.
+        </p>
+
+        <div class="space-y-4 mb-10">
+          <div class="flex gap-3">
+            <svg class="w-6 h-6 text-brand-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-earth-700">The full manifesto, expanded with stories from organizers who've won</span>
+          </div>
+          <div class="flex gap-3">
+            <svg class="w-6 h-6 text-brand-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-earth-700">Step-by-step campaign guide: from first signature to council meeting</span>
+          </div>
+          <div class="flex gap-3">
+            <svg class="w-6 h-6 text-brand-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-earth-700">The science: noise pollution, emissions, and public health impacts</span>
+          </div>
+          <div class="flex gap-3">
+            <svg class="w-6 h-6 text-brand-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-earth-700">Model ordinances, template letters, and talking points you can use</span>
+          </div>
+          <div class="flex gap-3">
+            <svg class="w-6 h-6 text-brand-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-earth-700">The electric equipment guide: what to buy, what to avoid, what actually works</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="#" class="btn-primary text-lg px-8 py-4 text-center">
+            Pre-order Now
+          </a>
+          <a href="#excerpt" class="btn-secondary text-lg px-8 py-4 text-center">
+            Read an Excerpt
+          </a>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-brand-100 to-brand-50 rounded-2xl p-12 text-center">
+        <div class="w-48 h-64 bg-brand-200 rounded-lg mx-auto mb-6 flex items-center justify-center">
+          <span class="text-brand-500 text-6xl font-display">QTM</span>
+        </div>
+        <p class="text-earth-500 text-sm">288 pages &middot; Available in paperback, hardcover, and ebook</p>
+      </div>
+    </div>
+
+    <div id="excerpt" class="mt-24">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-3xl font-display font-bold text-brand-900 mb-8 text-center">From the Introduction</h2>
+        <div class="prose mx-auto">
+          <blockquote>
+            <p>I didn't set out to start a movement. I set out to sleep past 7:30 on a Saturday.</p>
+            <p>The leaf blowers started at 7:45. By 8:15, a second crew had arrived across the street. By 9:00, three different lawn services were operating within earshot of my windows, each running gas-powered equipment that produced a combined wall of sound no set of earplugs could defeat.</p>
+            <p>I did what any reasonable person would do: I complained to my spouse. I complained to my neighbors. I complained on social media with the hashtag #QuietTheMowers. And then I realized something: millions of people were complaining about the same thing, and almost nobody was doing anything about it.</p>
+            <p>This book is about what happens when complaining turns into organizing. It's about the surprisingly simple path from "someone should do something" to "I did something." It's about the power of one HOA meeting, one city council resolution, one changed rule at a time.</p>
+            <p>You don't need to be a policy expert. You don't need a law degree. You need a petition, some signatures, a sound meter (which you can rent from us), and the willingness to show up and speak. Everything else is in this book.</p>
+          </blockquote>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-24 grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+      {[
+        { ch: '1', title: 'The Noise You Don\'t Hear (Until You Do)' },
+        { ch: '2', title: 'Two-Stroke Engines and the Air We Breathe' },
+        { ch: '3', title: 'The Health Costs Nobody Talks About' },
+        { ch: '4', title: 'Electric Is Here. It\'s Better. Let\'s Use It.' },
+        { ch: '5', title: 'The Ordinance Library: What\'s Already Passed' },
+        { ch: '6', title: 'Starting Your Campaign: From Zero to First Signature' },
+        { ch: '7', title: 'Measuring Noise: The Data That Wins Arguments' },
+        { ch: '8', title: 'The Council Meeting Playbook' },
+        { ch: '9', title: 'When You Win: Celebrating and Replicating' },
+        { ch: '10', title: 'The Movement: What Comes Next' },
+      ].map(row => (
+        <div class="bg-earth-50 rounded-xl p-5">
+          <span class="text-brand-500 font-bold text-xs">Chapter {row.ch}</span>
+          <p class="text-earth-800 font-medium mt-1">{row.title}</p>
+        </div>
+      ))}
+    </div>
+
+    <div class="mt-16 text-center">
+      <a href="#" class="btn-primary text-lg px-8 py-4">
+        Pre-order the Book
+      </a>
+    </div>
+  </div>
+</article>
+
+</Layout>

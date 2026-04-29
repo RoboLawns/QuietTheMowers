@@ -1,0 +1,332 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../../utils/auth';
+import { getDBFromLocals } from '../../../utils/db';
+
+export const prerender = false;
+
+const db = getDBFromLocals(Astro.locals);
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const { slug } = Astro.params;
+
+if (!user) {
+  return new Response(null, { status: 302, headers: { Location: `/api/auth/sign-in?redirect=/campaigns/${slug}/manage` } });
+}
+
+const campaign = db.prepare(`
+  SELECT c.*,
+    (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
+  FROM campaigns c
+  WHERE c.slug = ? AND c.organizer_id = ?
+`).bind(slug, user.id).first() as any;
+
+if (!campaign) {
+  return new Response(null, { status: 302, headers: { Location: `/campaigns/${slug}` } });
+}
+
+const allSignatures = db.prepare('SELECT * FROM signatures WHERE campaign_id = ? ORDER BY created_at DESC').bind(campaign.id).all();
+const campaignUpdates = db.prepare('SELECT * FROM updates WHERE campaign_id = ? ORDER BY created_at DESC').bind(campaign.id).all();
+
+let message = '';
+let messageType = 'success';
+
+// Handle form posts
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
+
+  try {
+    if (action === 'update') {
+      const title = formData.get('update_title')?.toString()?.trim();
+      const body = formData.get('update_body')?.toString()?.trim();
+      if (title && body) {
+        const id = crypto.randomUUID();
+        db.prepare('INSERT INTO updates (id, campaign_id, author_id, title, body_markdown, send_email) VALUES (?, ?, ?, ?, ?, 0)')
+          .bind(id, campaign.id, user.id, title, body).run();
+        message = 'Update posted!';
+      }
+    } else if (action === 'edit') {
+      const title = formData.get('title')?.toString()?.trim();
+      const story = formData.get('story_markdown')?.toString()?.trim();
+      const goal = parseInt(formData.get('goal_signatures')?.toString() || '0');
+      if (title && story) {
+        db.prepare('UPDATE campaigns SET title = ?, story_markdown = ?, goal_signatures = ?, updated_at = datetime(\'now\') WHERE id = ?')
+          .bind(title, story, goal, campaign.id).run();
+        message = 'Campaign updated!';
+      }
+    }
+  } catch (e) {
+    message = 'Something went wrong.';
+    messageType = 'error';
+  }
+
+  // Redirect to avoid resubmission
+  if (message) {
+    return new Response(null, { status: 302, headers: { Location: `/campaigns/${slug}/manage?msg=${encodeURIComponent(message)}&type=${messageType}` } });
+  }
+}
+
+const urlMsg = Astro.url.searchParams.get('msg');
+const urlType = Astro.url.searchParams.get('type');
+if (urlMsg) { message = urlMsg; messageType = urlType || 'success'; }
+
+const progress = Math.min(100, Math.round((campaign.signature_count / (campaign.goal_signatures || 1)) * 100));
+---
+
+<Layout title={`Manage: ${campaign.title}`} description="Manage your campaign" user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <a href={`/campaigns/${slug}`} class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; View Public Campaign Page
+    </a>
+
+    <h1 class="text-4xl font-display font-bold text-brand-900 mb-2">Manage Campaign</h1>
+    <p class="text-lg text-earth-500 mb-10">{campaign.title}</p>
+
+    {message && (
+      <div class={`rounded-xl p-4 mb-8 text-sm text-center ${messageType === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+        {message}
+      </div>
+    )}
+
+    <div class="grid md:grid-cols-2 gap-8">
+      <!-- Stats -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Campaign Stats</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-brand-50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-display font-bold text-brand-600">{campaign.signature_count}</div>
+            <div class="text-xs text-earth-500 mt-1">Signatures</div>
+          </div>
+          <div class="bg-brand-50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-display font-bold text-brand-600">{progress}%</div>
+            <div class="text-xs text-earth-500 mt-1">of {campaign.goal_signatures} goal</div>
+          </div>
+          <div class="bg-brand-50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-display font-bold text-brand-600">{campaignUpdates.results?.length || 0}</div>
+            <div class="text-xs text-earth-500 mt-1">Updates</div>
+          </div>
+          <div class="bg-brand-50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-display font-bold text-brand-600">{allSignatures.results?.length || 0}</div>
+            <div class="text-xs text-earth-500 mt-1">Total Signers</div>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-earth-100">
+          <h3 class="font-semibold text-earth-900 text-sm mb-2">Share Your Campaign</h3>
+          <div class="flex gap-2">
+            <input type="text" readonly value={new URL(`/campaigns/${slug}`, Astro.site).href} class="flex-1 rounded-lg border border-earth-300 px-3 py-2 text-xs text-earth-700 bg-earth-50" />
+            <button onclick={`navigator.clipboard.writeText('${new URL(`/campaigns/${slug}`, Astro.site).href}')`} class="btn-secondary text-xs px-3 py-2">
+              Copy
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Post Update -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Post an Update</h2>
+        <form method="POST" class="space-y-4">
+          <input type="hidden" name="action" value="update" />
+          <div>
+            <label for="update_title" class="block text-sm font-medium text-earth-700 mb-1.5">Update Title</label>
+            <input type="text" id="update_title" name="update_title" required placeholder='"We hit 500 signatures!"' class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="update_body" class="block text-sm font-medium text-earth-700 mb-1.5">Update Body</label>
+            <textarea id="update_body" name="update_body" rows={4} required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y text-sm"></textarea>
+          </div>
+          <button type="submit" class="btn-primary w-full">Post Update</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Campaign -->
+    <div class="bg-white border border-earth-200 rounded-2xl p-8 mt-8">
+      <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Edit Campaign</h2>
+      <form method="POST" class="space-y-4">
+        <input type="hidden" name="action" value="edit" />
+        <div>
+          <label for="title" class="block text-sm font-medium text-earth-700 mb-1.5">Title</label>
+          <input type="text" id="title" name="title" required value={campaign.title} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label for="story_markdown" class="block text-sm font-medium text-earth-700 mb-1.5">Story (Markdown)</label>
+          <textarea id="story_markdown" name="story_markdown" rows={8} required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y font-mono text-sm">{campaign.story_markdown || ''}</textarea>
+        </div>
+        <div>
+          <label for="goal_signatures" class="block text-sm font-medium text-earth-700 mb-1.5">Signature Goal</label>
+          <input type="number" id="goal_signatures" name="goal_signatures" required min={campaign.signature_count} value={campaign.goal_signatures} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+        <button type="submit" class="btn-primary">Save Changes</button>
+      </form>
+    </div>
+
+    <!-- Council Meeting Prep -->
+    <div class="bg-white border-2 border-accent-200 rounded-2xl p-8 mt-8">
+      <div class="flex items-center gap-3 mb-6">
+        <svg class="w-8 h-8 text-accent-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <div>
+          <h2 class="text-xl font-display font-bold text-brand-900">Meeting Prep Wizard</h2>
+          <p class="text-sm text-earth-500">Generate speaker cards, remarks, and handouts for your meeting.</p>
+        </div>
+      </div>
+
+      <div id="meeting-prep" class="bg-accent-50 rounded-xl p-6" data-title={campaign.title} data-sig-count={campaign.signature_count} data-goal-count={campaign.goal_signatures} data-target-name={campaign.target_name || ''} data-city={campaign.location_city || ''} data-state={campaign.location_state || ''} data-organizer={campaign.organizer_name || 'Organizer'}>
+        <form id="prep-form" class="space-y-4">
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-earth-700 mb-1.5">Meeting Date</label>
+              <input type="date" id="prep-date" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-accent-500" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-earth-700 mb-1.5">Time Allowed</label>
+              <select id="prep-time" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-accent-500">
+                <option value="3 min">3 minutes</option>
+                <option value="5 min">5 minutes</option>
+                <option value="10 min">10 minutes</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-earth-700 mb-1.5">Audience</label>
+              <select id="prep-audience" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-accent-500">
+                <option value="City Council">City Council</option>
+                <option value="HOA Board">HOA Board</option>
+                <option value="Planning Commission">Planning Commission</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" id="prep-generate" class="btn-accent">
+            Generate Meeting Materials
+          </button>
+        </form>
+
+        <div id="prep-output" class="hidden mt-6 space-y-4">
+          <div class="bg-white rounded-xl p-5 border border-accent-200">
+            <h3 class="font-display font-bold text-brand-900 mb-3">Speaker Card</h3>
+            <div id="prep-speaker-card" class="text-sm text-earth-700 space-y-1"></div>
+            <button onclick="window.print()" class="btn-secondary text-xs px-3 py-1.5 mt-3">Print</button>
+          </div>
+          <div class="bg-white rounded-xl p-5 border border-accent-200">
+            <h3 class="font-display font-bold text-brand-900 mb-3">Key Statistics</h3>
+            <div id="prep-stats" class="text-sm text-earth-700 space-y-1"></div>
+          </div>
+          <div class="bg-white rounded-xl p-5 border border-accent-200">
+            <h3 class="font-display font-bold text-brand-900 mb-3">Remarks Script (editable)</h3>
+            <textarea id="prep-remarks" rows={8} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 resize-y"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var el = document.getElementById('meeting-prep');
+      var prepData = {
+        campaignTitle: el?.dataset.title || '',
+        sigCount: parseInt(el?.dataset.sigCount || '0'),
+        goalCount: parseInt(el?.dataset.goalCount || '100'),
+        targetName: el?.dataset.targetName || '',
+        city: el?.dataset.city || '',
+        state: el?.dataset.state || '',
+        organizerName: el?.dataset.organizer || 'Organizer',
+      };
+
+      document.getElementById('prep-generate')?.addEventListener('click', () => {
+        var date = (document.getElementById('prep-date') as HTMLInputElement)?.value || '(date TBD)';
+        var time = (document.getElementById('prep-time') as HTMLSelectElement)?.value || '3 min';
+        var audience = (document.getElementById('prep-audience') as HTMLSelectElement)?.value || 'City Council';
+
+        var sigPercent = Math.round(prepData.sigCount / Math.max(1, prepData.goalCount) * 100);
+
+        var speakerCard = document.getElementById('prep-speaker-card');
+        if (speakerCard) {
+          speakerCard.innerHTML =
+            '<p><strong>Speaker:</strong> ' + prepData.organizerName + '</p>' +
+            '<p><strong>Topic:</strong> ' + prepData.campaignTitle + '</p>' +
+            '<p><strong>Date:</strong> ' + date + '</p>' +
+            '<p><strong>Time:</strong> ' + time + '</p>' +
+            '<p><strong>Audience:</strong> ' + audience + '</p>' +
+            '<p><strong>Signatures:</strong> ' + prepData.sigCount + ' of ' + prepData.goalCount + '</p>';
+        }
+
+        var stats = document.getElementById('prep-stats');
+        if (stats) {
+          stats.innerHTML =
+            '<p><strong>Campaign:</strong> ' + prepData.campaignTitle + '</p>' +
+            '<p><strong>Target:</strong> ' + prepData.targetName + '</p>' +
+            '<p><strong>Location:</strong> ' + prepData.city + (prepData.state ? ', ' + prepData.state : '') + '</p>' +
+            '<p><strong>Total Signatures:</strong> ' + prepData.sigCount + '</p>' +
+            '<p><strong>Goal:</strong> ' + prepData.goalCount + '</p>' +
+            '<p><strong>Progress:</strong> ' + sigPercent + '%</p>' +
+            '<p><strong>Measurement Data:</strong> Available on campaign page</p>';
+        }
+
+        var remaining = Math.max(0, prepData.goalCount - prepData.sigCount);
+        var remarks = document.getElementById('prep-remarks') as HTMLTextAreaElement;
+        if (remarks) {
+remarks.value = 'Good evening, members of the ' + audience + '. My name is ' + prepData.organizerName + ', and I\'m here on behalf of ' + prepData.sigCount + ' residents of ' + (prepData.city || 'our community') + ' who support ' + prepData.campaignTitle + '.\n\n[YOUR PERSONAL STORY HERE — 30 seconds]\n\nThe data supports what our community already knows. We\'ve documented noise levels exceeding 85 decibels during routine lawn maintenance — levels that pose hearing risks and disrupt quality of life.\n\nElectric alternatives exist today that are quieter, cleaner, and cost-competitive. ' + (remaining > 0 ? 'We need ' + remaining + ' more signatures to reach our goal, and we\'re asking this ' + audience + ' to take action.' : 'We\'ve surpassed our signature goal, demonstrating clear community support.') + '\n\nThe ordinance language we\'re proposing is modeled on laws already passed in Berkeley, Washington DC, and other communities. We\'ve provided the full text for your review.\n\nI\'m asking you to support this ordinance and help make ' + (prepData.city || 'our community') + ' a leader in the transition to quiet, clean lawn equipment.\n\nThank you for your time. I\'m happy to answer any questions.';
+        }
+
+        document.getElementById('prep-output')?.classList.remove('hidden');
+      });
+    </script>
+
+    <!-- Signers List -->
+    <div class="bg-white border border-earth-200 rounded-2xl p-8 mt-8">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-display font-bold text-brand-900">Signers ({allSignatures.results?.length || 0})</h2>
+        <button class="btn-secondary text-xs px-3 py-1.5">Export CSV</button>
+      </div>
+
+      {Array.isArray(allSignatures.results) && allSignatures.results.length > 0 ? (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b-2 border-earth-200 text-left">
+                <th class="py-3 pr-4 font-semibold text-earth-900">Name</th>
+                <th class="py-3 pr-4 font-semibold text-earth-900">Email</th>
+                <th class="py-3 pr-4 font-semibold text-earth-900">ZIP</th>
+                <th class="py-3 pr-4 font-semibold text-earth-900">Comment</th>
+                <th class="py-3 font-semibold text-earth-900">Date</th>
+              </tr>
+            </thead>
+            <tbody class="text-earth-600">
+              {allSignatures.results.map((s: any) => (
+                <tr class="border-b border-earth-100">
+                  <td class="py-2 pr-4">{s.name}</td>
+                  <td class="py-2 pr-4">{s.email}</td>
+                  <td class="py-2 pr-4">{s.zip || '-'}</td>
+                  <td class="py-2 pr-4 max-w-[200px] truncate">{s.comment || '-'}</td>
+                  <td class="py-2 whitespace-nowrap">{new Date(s.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p class="text-sm text-earth-400 text-center py-8">No signatures yet. Share your campaign to get started!</p>
+      )}
+    </div>
+
+    <!-- Updates History -->
+    {Array.isArray(campaignUpdates.results) && campaignUpdates.results.length > 0 && (
+      <div class="bg-white border border-earth-200 rounded-2xl p-8 mt-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Update History</h2>
+        <div class="space-y-4">
+          {campaignUpdates.results.map((u: any) => (
+            <div class="pb-4 border-b border-earth-100 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs text-earth-400">{new Date(u.created_at).toLocaleDateString()}</span>
+              </div>
+              <h3 class="font-semibold text-brand-900">{u.title}</h3>
+              <p class="text-sm text-earth-600 mt-1">{u.body_markdown}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+</section>
+
+</Layout>

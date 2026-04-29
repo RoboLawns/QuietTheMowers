@@ -1,0 +1,133 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../../utils/auth';
+import { getDBFromLocals } from '../../../utils/db';
+
+export const prerender = false;
+
+const db = getDBFromLocals(Astro.locals);
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const { slug } = Astro.params;
+
+const campaign = db.prepare('SELECT * FROM campaigns WHERE slug = ? AND status = ?').bind(slug, 'active').first() as any;
+
+if (!campaign) {
+  return new Response(null, { status: 302, headers: { Location: '/campaigns' } });
+}
+
+const signatureCount = db.prepare('SELECT COUNT(*) as count FROM signatures WHERE campaign_id = ?').bind(campaign.id).first() as any;
+
+let justSigned = false;
+let error = '';
+
+// Handle form submission
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const name = formData.get('name')?.toString()?.trim();
+    const email = formData.get('email')?.toString()?.trim();
+    const zip = formData.get('zip')?.toString()?.trim();
+    const comment = formData.get('comment')?.toString()?.trim();
+
+    if (!name || !email) {
+      error = 'Name and email are required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      error = 'Please enter a valid email address.';
+    } else {
+      // Check for duplicate
+      const existing = db.prepare('SELECT id FROM signatures WHERE email = ? AND campaign_id = ?').bind(email, campaign.id).first();
+      if (existing) {
+        error = 'You have already signed this petition.';
+      } else {
+        const id = crypto.randomUUID();
+        db.prepare(
+          'INSERT INTO signatures (id, campaign_id, name, email, zip, comment, display_publicly) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).bind(id, campaign.id, name, email, zip || null, comment || null, 1).run();
+        justSigned = true;
+      }
+    }
+  } catch (e) {
+    error = 'Something went wrong. Please try again.';
+  }
+}
+---
+
+<Layout title={`Sign: ${campaign.title}`} description={`Sign the petition: ${campaign.title}`} user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <a href={`/campaigns/${slug}`} class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; Back to Campaign
+    </a>
+
+    {justSigned ? (
+      <div class="text-center py-16">
+        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h1 class="text-3xl font-display font-bold text-brand-900 mb-4">Thank You for Signing!</h1>
+        <p class="text-lg text-earth-600 mb-8 max-w-md mx-auto">
+          Your signature has been added to "{campaign.title}". The organizer will be notified.
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href={`/campaigns/${slug}`} class="btn-primary">Back to Campaign</a>
+          <button onclick={`navigator.clipboard.writeText('${new URL(`/campaigns/${slug}`, Astro.site).href}')`} class="btn-secondary">
+            Share This Campaign
+          </button>
+        </div>
+      </div>
+    ) : (
+      <>
+        <div class="text-center mb-10">
+          <h1 class="text-4xl font-display font-bold text-brand-900 mb-4">Sign This Petition</h1>
+          <p class="text-xl text-earth-500 mb-2">{campaign.title}</p>
+          <p class="text-sm text-earth-400">
+            {signatureCount?.count || 0} of {campaign.goal_signatures} signatures collected
+          </p>
+        </div>
+
+        {error && (
+          <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-8 text-red-700 text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <div class="max-w-md mx-auto">
+          <div class="bg-white border border-earth-200 rounded-2xl p-8">
+            <form method="POST" class="space-y-5">
+              <div>
+                <label for="name" class="block text-sm font-medium text-earth-700 mb-1.5">Full Name *</label>
+                <input type="text" id="name" name="name" required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Your name" />
+              </div>
+              <div>
+                <label for="email" class="block text-sm font-medium text-earth-700 mb-1.5">Email *</label>
+                <input type="email" id="email" name="email" required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="you@example.com" />
+                <p class="text-xs text-earth-400 mt-1">Never displayed publicly. Used to verify your signature.</p>
+              </div>
+              <div>
+                <label for="zip" class="block text-sm font-medium text-earth-700 mb-1.5">ZIP Code</label>
+                <input type="text" id="zip" name="zip" pattern="[0-9]{5}" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="e.g. 80303" />
+                <p class="text-xs text-earth-400 mt-1">Helps verify you're a local resident.</p>
+              </div>
+              <div>
+                <label for="comment" class="block text-sm font-medium text-earth-700 mb-1.5">Comment (optional)</label>
+                <textarea id="comment" name="comment" rows={3} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y text-sm" placeholder="Why are you signing? One sentence is great."></textarea>
+              </div>
+              <button type="submit" class="btn-primary w-full text-lg py-4">
+                Sign the Petition
+              </button>
+            </form>
+          </div>
+
+          <p class="text-xs text-earth-400 text-center mt-4">
+            Your signature is public. Your email is not. We will never share your information.
+          </p>
+        </div>
+      </>
+    )}
+  </div>
+</section>
+
+</Layout>

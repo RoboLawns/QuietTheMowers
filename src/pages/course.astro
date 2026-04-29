@@ -1,0 +1,104 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Course"
+  description="The Quiet The Mowers Course: a step-by-step program for organizers who want to run and win a local campaign."
+>
+
+<article class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-16">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">The Course</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-6">
+        How to Run &amp; Win<br />a Local Campaign
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        A self-paced program that takes you from "I'm frustrated" to "we changed the rules."
+        Designed for organizers, not policy experts.
+      </p>
+    </div>
+
+    <div class="prose mx-auto text-center mb-16">
+      <p class="text-2xl font-display text-brand-800">6 modules &middot; 24 lessons &middot; Lifetime access &middot; Community support</p>
+    </div>
+
+    <div class="space-y-6 mb-16">
+      {[
+        {
+          mod: 'Module 1',
+          title: 'The Problem: Understanding What You\'re Up Against',
+          lessons: ['The noise and emissions data', 'Why current regulations fall short', 'Case studies: cities that led the way', 'Finding your why'],
+        },
+        {
+          mod: 'Module 2',
+          title: 'Building Your Campaign Foundation',
+          lessons: ['Choosing your target: HOA, city, or county', 'Drafting your petition language', 'Setting a realistic signature goal', 'Building your initial supporter list'],
+        },
+        {
+          mod: 'Module 3',
+          title: 'Evidence Gathering',
+          lessons: ['How to measure noise correctly', 'Using our measurement protocol', 'Documenting the problem in your neighborhood', 'Turning anecdotes into evidence'],
+        },
+        {
+          mod: 'Module 4',
+          title: 'Community Building',
+          lessons: ['Finding allies in your neighborhood', 'Working with local environmental groups', 'Press and social media strategy', 'Handling opposition constructively'],
+        },
+        {
+          mod: 'Module 5',
+          title: 'The Meeting',
+          lessons: ['Getting on the agenda', 'Writing your 3-minute remarks', 'Preparing speaker cards and handouts', 'What to expect and how to respond'],
+        },
+        {
+          mod: 'Module 6',
+          title: 'After the Win',
+          lessons: ['Documenting your success', 'Adding to the Wins Map', 'Helping the next organizer', 'Scaling to the next jurisdiction'],
+        },
+      ].map(module => (
+        <details class="group bg-white border border-earth-200 rounded-xl overflow-hidden">
+          <summary class="flex items-center justify-between p-6 cursor-pointer hover:bg-earth-50 transition-colors list-none">
+            <div>
+              <span class="text-brand-500 font-semibold text-xs tracking-wider uppercase">{module.mod}</span>
+              <h3 class="text-xl font-display font-bold text-brand-900 mt-1">{module.title}</h3>
+            </div>
+            <svg class="w-5 h-5 text-earth-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </summary>
+          <div class="px-6 pb-6 border-t border-earth-100 pt-4">
+            <ul class="space-y-2">
+              {module.lessons.map(lesson => (
+                <li class="flex items-center gap-2 text-earth-700">
+                  <svg class="w-4 h-4 text-brand-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
+                  </svg>
+                  {lesson}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      ))}
+    </div>
+
+    <div class="bg-brand-50 rounded-2xl p-10 text-center">
+      <h2 class="text-2xl font-display font-bold text-brand-900 mb-4">Ready to Start?</h2>
+      <p class="text-earth-600 mb-8 max-w-lg mx-auto">
+        The course is included free with any campaign started on the platform.
+        Sign up below and we'll walk you through every step.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="/campaigns/new" class="btn-primary text-lg px-8 py-4">
+          Start a Campaign &amp; Get the Course
+        </a>
+        <a href="/learn" class="btn-secondary text-lg px-8 py-4">
+          Browse Free Guides
+        </a>
+      </div>
+    </div>
+  </div>
+</article>
+
+</Layout>

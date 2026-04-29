@@ -1,0 +1,96 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { faqSchema } from '../utils/structured-data';
+---
+
+<Layout
+  title="About"
+  description="About Quiet The Mowers: the civic-tech platform turning the #QuietTheMowers hashtag into local policy change."
+>
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema([
+    { question: 'Is this anti-lawn care?', answer: 'No. Lawns need maintenance. We support lawn care. We want the tools used for that maintenance to be quiet, clean, and safe for the workers who use them and the neighbors who hear them. Electric equipment is better for everyone.' },
+    { question: 'What about commercial landscaping companies?', answer: 'Commercial operators face the highest noise exposure and the highest fuel costs. The transition to electric makes financial sense for them over the long run, and several cities have created grant programs and incentives specifically for commercial fleet conversion.' },
+    { question: 'Do I need to buy expensive equipment to participate?', answer: 'No. You can sign petitions for free. You can start a campaign for free. If you want to collect measurement data, you can rent a calibrated meter from us (you pay shipping), use a recommended smartphone app, or buy a budget meter for $30–60.' },
+    { question: 'Is this a nonprofit?', answer: 'We\'re in the process of determining the right legal structure. We\'re committed to transparency and community governance regardless of the final form.' },
+    { question: 'How do I get involved?', answer: 'Three ways: find a campaign near you and sign, start your own, or measure the noise on your street and upload the data.' },
+  ]))} />
+
+
+<article class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-16">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">About</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-6">
+        About the Movement
+      </h1>
+    </div>
+
+    <div class="prose mx-auto">
+
+      <h2>What Is Quiet The Mowers?</h2>
+
+      <p>Quiet The Mowers is a civic-tech platform that turns the #QuietTheMowers hashtag into local policy change. It started as a simple observation: Saturday mornings shouldn't sound like a construction site. It grew into a recognition that gas-powered lawn equipment is the last unregulated noise and air pollutant in most American neighborhoods &mdash; and that nobody was building the tools to fix it.</p>
+
+      <p>So we built them.</p>
+
+      <p>The platform combines content (the manifesto, guides, the ordinance library), tools (petition creation, noise measurement uploads, council meeting prep), and community (testimonials, campaign feeds, comments). The book and course sell the dream. The platform delivers the change.</p>
+
+      <h2>How It Works</h2>
+
+      <p>We've made it possible to go from "this is annoying" to "this is now illegal" in a matter of weeks. Here's the path:</p>
+
+      <ol>
+        <li><strong>Learn</strong> &mdash; Read the manifesto, understand the evidence, browse ordinances that have already passed.</li>
+        <li><strong>Organize</strong> &mdash; Start a campaign, pick a template, set a signature goal, write your story.</li>
+        <li><strong>Measure</strong> &mdash; Collect real noise data. Rent a calibrated meter from us or use our measurement protocol.</li>
+        <li><strong>Advocate</strong> &mdash; Walk into your HOA meeting or city council with a speaker card, data, and a signature list.</li>
+        <li><strong>Win</strong> &mdash; Change the rules. Add your win to the map. Help the next organizer do the same.</li>
+      </ol>
+
+      <h2>Our Values</h2>
+
+      <ul>
+        <li><strong>Evidence over vibes.</strong> We believe in data. Every campaign is stronger with real noise measurements.</li>
+        <li><strong>Local over national.</strong> Change happens at city councils and HOA boards. We give organizers local tools.</li>
+        <li><strong>Inclusion over exclusion.</strong> Lawn care workers deserve safe, effective tools. This movement benefits everyone &mdash; especially those most exposed.</li>
+        <li><strong>Action over outrage.</strong> It's easy to complain. It's harder to build a campaign, gather signatures, and show up. We make the harder path easier.</li>
+        <li><strong>Open over closed.</strong> The ordinance library is free. The measurement protocol is public. The templates are open-source. The movement grows by sharing.</li>
+      </ul>
+
+      <h2>Who's Behind This?</h2>
+
+      <p>Quiet The Mowers was founded by people who got tired of waking up to leaf blowers. We're neighbors, parents, remote workers, and community organizers who believe that quiet is a public good worth fighting for.</p>
+
+      <p>The platform is built and maintained by a distributed team of volunteers and contributors. We're not backed by venture capital or corporate interests. We're funded by donations, affiliate revenue from recommended equipment, and the community we serve.</p>
+
+      <h2>FAQ</h2>
+
+      <h3>Is this anti-lawn care?</h3>
+      <p>No. Lawns need maintenance. We support lawn care. We want the tools used for that maintenance to be quiet, clean, and safe for the workers who use them and the neighbors who hear them. Electric equipment is better for everyone.</p>
+
+      <h3>What about commercial landscaping companies?</h3>
+      <p>Commercial operators face the highest noise exposure and the highest fuel costs. The transition to electric makes financial sense for them over the long run, and several cities have created grant programs and incentives specifically for commercial fleet conversion. Our ordinance library includes examples.</p>
+
+      <h3>Do I need to buy expensive equipment to participate?</h3>
+      <p>No. You can sign petitions for free. You can start a campaign for free. If you want to collect measurement data, you can rent a calibrated meter from us (you pay shipping), use a recommended smartphone app, or buy a budget meter for $30&ndash;60.</p>
+
+      <h3>Is this a nonprofit?</h3>
+      <p>We're in the process of determining the right legal structure. We're committed to transparency and community governance regardless of the final form. All ordinance data, measurement protocols, and campaign templates will remain freely available.</p>
+
+      <h3>How do I get involved?</h3>
+      <p>Three ways: <a href="/campaigns">find a campaign</a> near you and sign, <a href="/campaigns/new">start your own</a>, or <a href="/measure">measure the noise</a> on your street and upload the data. If you want to contribute to the platform itself, <a href="/contact">reach out</a>.</p>
+
+    </div>
+
+    <div class="mt-16 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a href="/campaigns" class="btn-primary text-lg px-8 py-4">
+        Find Your Campaign
+      </a>
+      <a href="/contact" class="btn-secondary text-lg px-8 py-4">
+        Contact Us
+      </a>
+    </div>
+  </div>
+</article>
+
+</Layout>

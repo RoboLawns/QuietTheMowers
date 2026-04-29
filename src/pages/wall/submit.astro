@@ -1,0 +1,108 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../utils/auth';
+
+export const prerender = false;
+
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+
+if (!user) {
+  return new Response(null, { status: 302, headers: { Location: '/api/auth/sign-in?redirect=/wall/submit' } });
+}
+
+let message = '';
+let messageType = 'success';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const db = (Astro.locals as any).db;
+    
+    const title = formData.get('title')?.toString()?.trim();
+    const body = formData.get('body_markdown')?.toString()?.trim();
+    const displayName = formData.get('display_name')?.toString()?.trim() || user.displayName;
+    const locationCity = formData.get('location_city')?.toString()?.trim();
+    const locationState = formData.get('location_state')?.toString()?.trim()?.toUpperCase();
+    const mowerBrand = formData.get('mower_brand')?.toString()?.trim();
+
+    if (!title || !body) {
+      message = 'Title and story are required.';
+      messageType = 'error';
+    } else {
+      const id = crypto.randomUUID();
+      db.prepare(
+        'INSERT INTO testimonials (id, user_id, title, body_markdown, display_name, location_city, location_state, mower_brand) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(id, user.id, title, body, displayName, locationCity || null, locationState || null, mowerBrand || null).run();
+      
+      message = 'Story submitted for review! It will appear on the wall after approval.';
+      return new Response(null, { status: 302, headers: { Location: '/wall?msg=submitted' } });
+    }
+  } catch (e) {
+    message = 'Failed to submit. Please try again.';
+    messageType = 'error';
+  }
+}
+---
+
+<Layout title="Share Your Story" description="Tell us about your first quiet morning." user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <a href="/wall" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; Back to the Wall
+    </a>
+
+    <div class="text-center mb-10">
+      <h1 class="text-4xl font-display font-bold text-brand-900 mb-4">Share Your Story</h1>
+      <p class="text-lg text-earth-500">
+        Tell the world about your first quiet morning — or why you're fighting for one.
+        Stories are reviewed before appearing on the wall.
+      </p>
+    </div>
+
+    {message && (
+      <div class={`rounded-xl p-4 mb-8 text-sm text-center ${messageType === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+        {message}
+      </div>
+    )}
+
+    <div class="bg-white border border-earth-200 rounded-2xl p-8">
+      <form method="POST" class="space-y-5">
+        <div>
+          <label for="title" class="block text-sm font-medium text-earth-700 mb-1.5">Title *</label>
+          <input type="text" id="title" name="title" required maxlength={200} placeholder='e.g. "I finally heard the birds again"' class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label for="body_markdown" class="block text-sm font-medium text-earth-700 mb-1.5">Your Story *</label>
+          <textarea id="body_markdown" name="body_markdown" rows={8} required maxlength={3000} placeholder="Tell us what happened. What changed? How does it feel? (Markdown supported)" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"></textarea>
+          <p class="text-xs text-earth-400 mt-1">Max 3,000 characters.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label for="display_name" class="block text-sm font-medium text-earth-700 mb-1.5">Display Name</label>
+            <input type="text" id="display_name" name="display_name" placeholder="How should we credit you?" value={user.displayName} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="mower_brand" class="block text-sm font-medium text-earth-700 mb-1.5">Equipment Brand</label>
+            <input type="text" id="mower_brand" name="mower_brand" placeholder="e.g. EGO, Greenworks, Ryobi" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label for="location_city" class="block text-sm font-medium text-earth-700 mb-1.5">City</label>
+            <input type="text" id="location_city" name="location_city" placeholder="Your city" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="location_state" class="block text-sm font-medium text-earth-700 mb-1.5">State</label>
+            <input type="text" id="location_state" name="location_state" maxlength="2" placeholder="e.g. CO" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+        <button type="submit" class="btn-primary w-full text-lg py-4">
+          Submit Story
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+</Layout>

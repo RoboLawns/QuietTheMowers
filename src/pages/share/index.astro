@@ -1,0 +1,97 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../utils/auth';
+
+export const prerender = false;
+
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+
+const assets = [
+  {
+    category: 'Yard Signs',
+    items: [
+      { title: '"Quiet Mornings Start Here"', desc: 'Full-color 18×24 yard sign. Print-ready PDF.', format: 'PDF', size: '2.4 MB' },
+      { title: '"This Home Is Electric"', desc: 'Show your neighbors you\'ve made the switch.', format: 'PDF', size: '1.8 MB' },
+      { title: '"Ask Me About #QuietTheMowers"', desc: 'Conversation starter yard sign.', format: 'PDF', size: '2.1 MB' },
+    ],
+  },
+  {
+    category: 'Social Media Tiles',
+    items: [
+      { title: 'Campaign Launch Pack', desc: '3 square tiles + 2 story tiles. Customizable with your campaign name.', format: 'PNG/SVG', size: 'Bundle' },
+      { title: 'Stat Cards', desc: 'Shareable graphics with key noise/emissions facts.', format: 'PNG', size: 'Set of 6' },
+      { title: 'Quote Cards', desc: 'Pull quotes from the manifesto designed for sharing.', format: 'PNG', size: 'Set of 8' },
+    ],
+  },
+  {
+    category: 'Profile & Brand',
+    items: [
+      { title: 'Profile Frame', desc: '"I Signed #QuietTheMowers" profile picture overlay.', format: 'PNG', size: '1080×1080' },
+      { title: 'Email Signature Snippet', desc: 'HTML snippet for your email signature. "Ask me about #QuietTheMowers".', format: 'HTML', size: 'Copy/paste' },
+      { title: 'Zoom Background', desc: 'Virtual meeting background with movement branding.', format: 'JPG', size: '1920×1080' },
+    ],
+  },
+  {
+    category: 'Sample Posts',
+    items: [
+      { title: 'X / Twitter Posts', desc: '5 pre-written posts optimized for sharing. Copy and customize.', format: 'Text', size: '5 posts' },
+      { title: 'Facebook Post Templates', desc: '3 longer-form posts for community groups and neighborhood pages.', format: 'Text', size: '3 posts' },
+      { title: 'Nextdoor Message', desc: 'A friendly note for your neighborhood group introducing the movement.', format: 'Text', size: '1 template' },
+    ],
+  },
+  {
+    category: 'Print Materials',
+    items: [
+      { title: 'Campaign Flyer', desc: 'One-page flyer to hand out at events or post on community boards.', format: 'PDF', size: 'Letter size' },
+      { title: 'Petition Signature Sheet', desc: 'Printable sheet for collecting in-person signatures.', format: 'PDF', size: 'Letter size' },
+      { title: 'Sticker Designs', desc: '3 sticker designs for laptops, water bottles, and gear.', format: 'PDF/SVG', size: 'Set of 3' },
+    ],
+  },
+];
+---
+
+<Layout title="Shareable Assets" description="Yard signs, social media tiles, profile frames, and sample posts to spread the #QuietTheMowers movement." user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-12">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">Share</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-4">
+        Spread the Word
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        High-quality assets you can grab and post. Everything is free, downloadable, and designed to be shared.
+      </p>
+    </div>
+
+    {assets.map(section => (
+      <div class="mb-10">
+        <h2 class="text-2xl font-display font-bold text-brand-900 mb-6 pb-3 border-b border-earth-200">
+          {section.category}
+        </h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {section.items.map(item => (
+            <a href="#" class="block bg-white border border-earth-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-brand-900 text-sm">{item.title}</h3>
+                <span class="text-[10px] bg-earth-100 text-earth-500 px-2 py-0.5 rounded-full">{item.format}</span>
+              </div>
+              <p class="text-xs text-earth-500 mb-3">{item.desc}</p>
+              <span class="text-brand-600 text-xs font-medium">Download ({item.size}) &rarr;</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+
+    <div class="mt-12 bg-brand-50 rounded-2xl p-8 text-center">
+      <h2 class="text-xl font-display font-bold text-brand-900 mb-3">Want Custom Assets for Your Campaign?</h2>
+      <p class="text-earth-600 mb-6">
+        When you start a campaign, we generate custom social cards with your campaign name and signature count.
+      </p>
+      <a href="/campaigns/new" class="btn-primary">Start a Campaign</a>
+    </div>
+  </div>
+</section>
+
+</Layout>

@@ -1,0 +1,50 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { guideSlugMap } from '../../utils/learn';
+
+export function getStaticPaths() {
+  return Object.keys(guideSlugMap).map(slug => ({ params: { slug } }));
+}
+
+const { slug } = Astro.params;
+const guide = slug ? guideSlugMap[slug] : undefined;
+---
+
+<Layout title={guide?.title ?? 'Guide'} description={guide ? guide.content.split('\n').filter(l => l && !l.startsWith('#') && !l.startsWith('|') && !l.startsWith('-'))[0]?.slice(0, 160) : 'A Quiet The Mowers guide.'}>
+  {guide ? (
+    <article class="section">
+      <div class="container-narrow">
+        <a href="/learn" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+          &larr; All Guides
+        </a>
+        <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 mb-8">
+          {guide.title}
+        </h1>
+        <div class="prose mx-auto">
+          {guide.content.split('\n').map(line => {
+            if (line.startsWith('## ')) return <h2>{line.replace('## ', '')}</h2>;
+            if (line.startsWith('### ')) return <h3>{line.replace('### ', '')}</h3>;
+            if (line.startsWith('- ')) return <li>{line.replace('- ', '')}</li>;
+            if (line.startsWith('|')) {
+              const cells = line.split('|').filter(c => c.trim());
+              return <p class="font-mono text-sm">{cells.join(' | ')}</p>;
+            }
+            if (line.trim() === '') return <br />;
+            return <p>{line}</p>;
+          })}
+        </div>
+        <div class="mt-12 pt-8 border-t border-earth-200 flex flex-col sm:flex-row items-center gap-4">
+          <a href="/measure/upload" class="btn-primary">Upload Your Measurements</a>
+          <a href="/measure/rent" class="btn-secondary">Rent a Sound Meter</a>
+        </div>
+      </div>
+    </article>
+  ) : (
+    <section class="section">
+      <div class="container-narrow text-center">
+        <h1 class="text-4xl font-display font-bold text-brand-900 mb-4">Guide Not Found</h1>
+        <p class="text-earth-500 mb-8">This guide doesn't exist yet. <a href="/learn" class="text-brand-600 hover:text-brand-800">Browse all guides</a>.</p>
+      </div>
+    </section>
+  )}
+</Layout>

@@ -1,0 +1,154 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="Buy Sound Measurement Equipment"
+  description="Curated recommendations for sound level meters and accessories. Budget picks, professional gear, and smartphone alternatives."
+>
+
+<article class="section">
+  <div class="container-narrow">
+    <a href="/measure" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; Back to Measure
+    </a>
+
+    <div class="text-center mb-12">
+      <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 leading-tight mb-4">
+        Recommended Equipment
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        Curated picks for every budget. Links include Amazon affiliate tags that help fund the platform at no cost to you.
+      </p>
+    </div>
+
+    <div class="space-y-8">
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="text-xs bg-brand-100 text-brand-700 px-3 py-1 rounded-full font-semibold shrink-0">Budget</span>
+          <h2 class="text-2xl font-display font-bold text-brand-900">Entry-Level Meters ($30&ndash;60)</h2>
+        </div>
+        <p class="text-earth-600 mb-6">
+          Good for getting indicative readings and understanding relative noise levels. Not suitable for data you plan to present in formal settings, but great for personal awareness and campaign inspiration.
+        </p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          {[
+            { name: 'BAFX Products Decibel Meter', price: '$30', note: 'Popular entry-level choice. A/C weighted, max/min, data hold.' },
+            { name: 'RISEPRO Decibel Meter', price: '$35', note: 'Digital display, fast/slow response. Good for quick checks.' },
+          ].map(item => (
+            <a href="#" class="block bg-earth-50 rounded-xl p-5 hover:bg-brand-50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-brand-900">{item.name}</h3>
+                <span class="text-brand-600 font-bold">{item.price}</span>
+              </div>
+              <p class="text-sm text-earth-500">{item.note}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div class="bg-white border-2 border-brand-200 rounded-2xl p-8">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="text-xs bg-brand-600 text-white px-3 py-1 rounded-full font-semibold shrink-0">Recommended</span>
+          <h2 class="text-2xl font-display font-bold text-brand-900">Class 2 Meters ($100&ndash;300)</h2>
+        </div>
+        <p class="text-earth-600 mb-6">
+          The standard for serious advocacy. Class 2 meters meet IEC 61672 standards and produce data suitable for presentation to city councils, HOAs, and other decision-making bodies. These are the same meters in our rental fleet.
+        </p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          {[
+            { name: 'Reed R8050', price: '$180', note: 'Our rental fleet standard. Class 2, data logging, USB output. Excellent all-around choice.' },
+            { name: 'Extech 407730', price: '$150', note: 'Reliable Class 2 meter with A/C weighting. Good battery life. Simple operation.' },
+          ].map(item => (
+            <a href="#" class="block bg-brand-50 rounded-xl p-5 hover:bg-brand-100 transition-colors border border-brand-200">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-brand-900">{item.name}</h3>
+                <span class="text-brand-600 font-bold">{item.price}</span>
+              </div>
+              <p class="text-sm text-earth-500">{item.note}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="text-xs bg-accent-100 text-accent-700 px-3 py-1 rounded-full font-semibold shrink-0">Professional</span>
+          <h2 class="text-2xl font-display font-bold text-brand-900">Class 1 Meters ($500+)</h2>
+        </div>
+        <p class="text-earth-600 mb-6">
+          For organizers who expect legal scrutiny or need the highest accuracy. Class 1 meters are laboratory-grade and produce data suitable for expert testimony and legal proceedings.
+        </p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          {[
+            { name: 'Larson Davis 831C', price: '$2,500+', note: 'Industry standard for legal and regulatory use. Overkill for most campaigns.' },
+            { name: 'NTi Audio XL2', price: '$1,800+', note: 'Professional audio analyzer with Class 1 certification. Studio-grade.' },
+          ].map(item => (
+            <a href="#" class="block bg-earth-50 rounded-xl p-5 hover:bg-brand-50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-brand-900">{item.name}</h3>
+                <span class="text-accent-600 font-bold">{item.price}</span>
+              </div>
+              <p class="text-sm text-earth-500">{item.note}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-2xl font-display font-bold text-brand-900 mb-4">Smartphone Apps</h2>
+        <p class="text-earth-600 mb-6">
+          Convenient but less accurate than dedicated meters. Use these for personal awareness and preliminary measurements. Always calibrate before each session.
+        </p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          {[
+            { name: 'NIOSH SLM (iOS)', price: 'Free', note: 'Developed by CDC researchers. The most accurate smartphone app available. iOS only.' },
+            { name: 'Decibel X (iOS/Android)', price: 'Free / $4 Pro', note: 'Well-reviewed consumer app. Frequency weighting, data logging in pro version.' },
+          ].map(item => (
+            <a href="#" class="block bg-earth-50 rounded-xl p-5 hover:bg-brand-50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-brand-900">{item.name}</h3>
+                <span class="text-earth-600 font-bold">{item.price}</span>
+              </div>
+              <p class="text-sm text-earth-500">{item.note}</p>
+            </a>
+          ))}
+        </div>
+        <p class="text-xs text-earth-400 mt-4">
+          Note: Smartphone microphones are not calibrated for precision measurement. Readings can vary by 3&ndash;5 dB from true levels. For data you plan to present formally, use a dedicated meter.
+        </p>
+      </div>
+
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <h2 class="text-2xl font-display font-bold text-brand-900 mb-4">Accessories</h2>
+        <div class="grid sm:grid-cols-2 gap-4">
+          {[
+            { name: 'Tripod', price: '$15&ndash;25', note: 'Essential for consistent measurements at ear height.' },
+            { name: 'Windscreen', price: '$5&ndash;10', note: 'Reduces wind noise. Many meters include one.' },
+            { name: 'Laser Distance Measurer', price: '$25&ndash;40', note: 'For accurately measuring distance from the noise source.' },
+            { name: 'Calibrator', price: '$100&ndash;200', note: 'For verifying meter accuracy yourself. Not necessary for most users.' },
+          ].map(item => (
+            <a href="#" class="block bg-earth-50 rounded-xl p-5 hover:bg-brand-50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-brand-900">{item.name}</h3>
+                <span class="text-earth-600 font-bold">{item.price}</span>
+              </div>
+              <p class="text-sm text-earth-500">{item.note}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-12 text-center">
+      <p class="text-earth-500 text-sm mb-4">
+        Links on this page use Amazon Associate affiliate tags. Purchases made through these links help fund the platform.
+      </p>
+      <a href="/measure/rent" class="btn-secondary">
+        Rather rent than buy?
+      </a>
+    </div>
+  </div>
+</article>
+
+</Layout>

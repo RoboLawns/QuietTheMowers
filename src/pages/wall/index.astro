@@ -1,0 +1,111 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../utils/auth';
+import { getDBFromLocals } from '../../utils/db';
+
+export const prerender = false;
+
+// Get approved testimonials
+const db = getDBFromLocals(Astro.locals);
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+
+const urlState = Astro.url.searchParams.get('state') || '';
+const urlFeatured = Astro.url.searchParams.get('featured') || '';
+
+let query = `SELECT t.*, u.display_name as author_name
+  FROM testimonials t
+  LEFT JOIN users u ON t.user_id = u.id
+  WHERE t.status = 'approved'`;
+
+const params: unknown[] = [];
+if (urlState) {
+  query += ' AND t.location_state = ?';
+  params.push(urlState.toUpperCase());
+}
+if (urlFeatured === '1') {
+  query += ' AND t.featured = 1';
+}
+
+query += ' ORDER BY t.featured DESC, t.created_at DESC LIMIT 50';
+
+const testimonials = db.prepare(query).bind(...params).all();
+
+// Get unique states for filter
+const states = db.prepare('SELECT DISTINCT location_state FROM testimonials WHERE location_state IS NOT NULL ORDER BY location_state').all();
+---
+
+<Layout title="Testimonial Wall" description="Read stories from people who switched to quiet lawn equipment and never looked back." user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-12">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">The Wall</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-4">
+        First Quiet Mornings
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        Real stories from people who made the switch. Read, share, and add your own.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+      <div class="flex flex-wrap gap-2">
+        <a href="/wall" class={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${!urlState && !urlFeatured ? 'bg-brand-600 text-white' : 'bg-earth-100 text-earth-600 hover:bg-brand-100'}`}>All</a>
+        <a href="/wall?featured=1" class={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${urlFeatured === '1' ? 'bg-accent-500 text-white' : 'bg-earth-100 text-earth-600 hover:bg-accent-100'}`}>Featured</a>
+        {Array.isArray(states.results) && states.results.map((s: any) => (
+          <a
+            href={`/wall?state=${s.location_state}`}
+            class={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${urlState === s.location_state ? 'bg-brand-600 text-white' : 'bg-earth-100 text-earth-600 hover:bg-brand-100'}`}
+          >
+            {s.location_state}
+          </a>
+        ))}
+      </div>
+      <a href={user ? '/wall/submit' : '/api/auth/sign-in?redirect=/wall/submit'} class="btn-accent text-sm px-4 py-2">
+        Share Your Story
+      </a>
+    </div>
+
+    {Array.isArray(testimonials.results) && testimonials.results.length > 0 ? (
+      <div class="grid md:grid-cols-2 gap-6">
+        {testimonials.results.map((t: any) => (
+          <a href={`/wall/${t.id}`} class="block bg-white border border-earth-200 rounded-xl p-6 hover:border-brand-300 hover:shadow-md transition-all">
+            {t.featured ? (
+              <span class="inline-block text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full font-medium mb-3">Featured</span>
+            ) : null}
+            <h3 class="font-display font-bold text-brand-900 text-lg mb-3">{t.title}</h3>
+            <div class="prose text-sm text-earth-600 mb-4 line-clamp-3">
+              {t.body_markdown.split('\n').filter(Boolean).slice(0, 3).map((line: string) => (
+                <p>{line}</p>
+              ))}
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-[10px]">
+                  {(t.display_name || 'A').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div class="text-xs font-medium text-earth-900">{t.display_name}</div>
+                  {t.location_city && <div class="text-[10px] text-earth-400">{t.location_city}{t.location_state ? `, ${t.location_state}` : ''}</div>}
+                </div>
+              </div>
+              {t.mower_brand && (
+                <span class="text-[10px] bg-earth-50 text-earth-500 px-2 py-0.5 rounded-full">Switched to {t.mower_brand}</span>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-16 bg-earth-50 rounded-2xl">
+        <p class="text-xl text-earth-400 mb-4">No stories yet.</p>
+        <p class="text-earth-500 mb-8">Be the first to share your quiet morning experience.</p>
+        <a href={user ? '/wall/submit' : '/api/auth/sign-in'} class="btn-primary">
+          Share Your Story
+        </a>
+      </div>
+    )}
+  </div>
+</section>
+
+</Layout>

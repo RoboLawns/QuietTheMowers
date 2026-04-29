@@ -1,0 +1,237 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../../utils/auth';
+import { getDBFromLocals } from '../../../utils/db';
+
+export const prerender = false;
+
+const db = getDBFromLocals(Astro.locals);
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const { slug } = Astro.params;
+
+const campaign = db.prepare(`
+  SELECT c.*, u.display_name as organizer_name, u.avatar_url as organizer_avatar,
+    (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
+  FROM campaigns c
+  LEFT JOIN users u ON c.organizer_id = u.id
+  WHERE c.slug = ? AND c.status != 'draft'
+`).bind(slug).first() as any;
+
+if (!campaign) {
+  return new Response(null, { status: 302, headers: { Location: '/campaigns' } });
+}
+
+const signatures = db.prepare(`
+  SELECT name, comment, created_at FROM signatures
+  WHERE campaign_id = ? AND display_publicly = 1
+  ORDER BY created_at DESC
+  LIMIT 20
+`).bind(campaign.id).all();
+
+const updates = db.prepare(`
+  SELECT u.*, us.display_name as author_name
+  FROM updates u
+  LEFT JOIN users us ON u.author_id = us.id
+  WHERE u.campaign_id = ?
+  ORDER BY u.created_at DESC
+`).bind(campaign.id).all();
+
+const comments = db.prepare(`
+  SELECT c.*, us.display_name as author_name
+  FROM comments c
+  LEFT JOIN users us ON c.user_id = us.id
+  WHERE c.parent_type = 'campaign' AND c.parent_id = ? AND c.status = 'visible'
+  ORDER BY c.created_at DESC
+`).bind(campaign.id).all();
+
+const progress = Math.min(100, Math.round((campaign.signature_count / campaign.goal_signatures) * 100));
+
+const statusLabels: Record<string, string> = {
+  active: 'Active',
+  won: 'Won!',
+  closed: 'Closed',
+};
+---
+
+<Layout title={campaign.title} description={campaign.title} user={user} ogType="article">
+  <article class="section">
+    <div class="container-narrow">
+      <a href="/campaigns" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+        &larr; All Campaigns
+      </a>
+
+      {campaign.status === 'won' && (
+        <div class="bg-accent-50 border border-accent-200 rounded-xl p-4 mb-8 flex items-center gap-3">
+          <svg class="w-6 h-6 text-accent-500 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span class="text-accent-800 font-semibold">This campaign won! The rules have been changed.</span>
+        </div>
+      )}
+
+      <div class="flex flex-wrap gap-2 mb-4">
+        <span class={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+          campaign.status === 'active' ? 'bg-green-100 text-green-700' :
+          campaign.status === 'won' ? 'bg-accent-100 text-accent-700' :
+          'bg-earth-100 text-earth-600'
+        }`}>
+          {statusLabels[campaign.status] || campaign.status}
+        </span>
+        <span class="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
+          {campaign.target_name || campaign.location_city}
+          {campaign.location_state ? `, ${campaign.location_state}` : ''}
+        </span>
+      </div>
+
+      <h1 class="text-4xl md:text-5xl font-display font-bold text-brand-900 mb-6">
+        {campaign.title}
+      </h1>
+
+      <div class="flex items-center gap-3 mb-8">
+        <div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
+          {(campaign.organizer_name || 'O').charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div class="font-semibold text-earth-900 text-sm">{campaign.organizer_name || 'Organizer'}</div>
+          <div class="text-earth-500 text-xs">Campaign Organizer</div>
+        </div>
+      </div>
+
+      <!-- Progress Card -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8 mb-8">
+        <div class="flex items-end justify-between mb-4">
+          <div>
+            <div class="text-4xl font-display font-bold text-brand-600">{campaign.signature_count}</div>
+            <div class="text-sm text-earth-500">signatures of {campaign.goal_signatures} goal</div>
+          </div>
+          <div class="text-right text-sm text-earth-500">
+            {progress}% complete
+          </div>
+        </div>
+        <div class="w-full bg-earth-200 rounded-full h-2.5">
+          <div class="bg-brand-500 h-2.5 rounded-full transition-all" style={`width: ${progress}%`}></div>
+        </div>
+        <div class="mt-6 flex flex-col sm:flex-row gap-3">
+          <a href={`/campaigns/${slug}/sign`} class="btn-primary flex-1 text-center">
+            Sign This Petition
+          </a>
+          <button onclick={`navigator.clipboard.writeText('${Astro.url.href}')`} class="btn-secondary">
+            Copy Link
+          </button>
+        </div>
+      </div>
+
+      <!-- Story -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8 mb-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-6">The Story</h2>
+        <div class="prose">
+          {campaign.story_markdown ? (
+            campaign.story_markdown.split('\n').map((line: string) => {
+              if (line.startsWith('## ')) return <h2>{line.replace('## ', '')}</h2>;
+              if (line.startsWith('### ')) return <h3>{line.replace('### ', '')}</h3>;
+              if (line.startsWith('- ')) return <li>{line.replace('- ', '')}</li>;
+              if (line.startsWith('> ')) return <blockquote><p>{line.replace('> ', '')}</p></blockquote>;
+              if (line.trim() === '') return <br />;
+              return <p>{line}</p>;
+            })
+          ) : (
+            <p class="text-earth-400 italic">No story has been written yet.</p>
+          )}
+        </div>
+      </div>
+
+      <!-- Updates -->
+      {Array.isArray(updates.results) && updates.results.length > 0 && (
+        <div class="bg-white border border-earth-200 rounded-2xl p-8 mb-8">
+          <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Campaign Updates</h2>
+          <div class="space-y-6">
+            {updates.results.map((u: any) => (
+              <div class="pb-6 border-b border-earth-100 last:border-0 last:pb-0">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full font-medium">Update</span>
+                  <span class="text-xs text-earth-400">{new Date(u.created_at).toLocaleDateString()}</span>
+                </div>
+                <h3 class="font-semibold text-brand-900 mb-2">{u.title}</h3>
+                <div class="prose text-sm">
+                  {u.body_markdown.split('\n').map((line: string) => {
+                    if (line.trim() === '') return <br />;
+                    return <p>{line}</p>;
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <!-- Recent Signatures -->
+      {Array.isArray(signatures.results) && signatures.results.length > 0 && (
+        <div class="bg-white border border-earth-200 rounded-2xl p-8 mb-8">
+          <h2 class="text-xl font-display font-bold text-brand-900 mb-6">
+            Recent Signatures ({campaign.signature_count})
+          </h2>
+          <div class="space-y-3">
+            {signatures.results.map((s: any) => (
+              <div class="flex items-start gap-3 pb-3 border-b border-earth-100 last:border-0 last:pb-0">
+                <div class="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-xs shrink-0">
+                  {s.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div class="font-semibold text-earth-900 text-sm">{s.name}</div>
+                  {s.comment && <p class="text-xs text-earth-500 mt-0.5">{s.comment}</p>}
+                  <p class="text-[10px] text-earth-400 mt-1">{new Date(s.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <!-- Comments -->
+      <div class="bg-white border border-earth-200 rounded-2xl p-8 mb-8">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-6">
+          Discussion ({comments.results?.length || 0})
+        </h2>
+
+        {user ? (
+          <form action={`/api/campaigns/${campaign.id}/comment`} method="POST" class="mb-8">
+            <textarea name="body" rows={3} required placeholder="Add your thoughts..." class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y text-sm mb-3"></textarea>
+            <button type="submit" class="btn-primary text-sm px-4 py-2">Post Comment</button>
+          </form>
+        ) : (
+          <div class="bg-earth-50 rounded-xl p-4 mb-8 text-center">
+            <p class="text-sm text-earth-500">
+              <a href="/api/auth/sign-in" class="text-brand-600 hover:text-brand-800 font-medium">Sign in</a> to join the discussion.
+            </p>
+          </div>
+        )}
+
+        <div class="space-y-4">
+          {Array.isArray(comments.results) && comments.results.map((c: any) => (
+            <div class="flex gap-3 pb-4 border-b border-earth-100 last:border-0 last:pb-0">
+              <div class="w-8 h-8 rounded-full bg-earth-100 flex items-center justify-center text-earth-500 font-bold text-xs shrink-0">
+                {(c.author_name || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-semibold text-earth-900 text-sm">{c.author_name || 'Anonymous'}</span>
+                  <span class="text-[10px] text-earth-400">{new Date(c.created_at).toLocaleDateString()}</span>
+                </div>
+                <p class="text-sm text-earth-700">{c.body}</p>
+              </div>
+            </div>
+          ))}
+          {(!comments.results || comments.results.length === 0) && (
+            <p class="text-sm text-earth-400 text-center py-4">No comments yet. Be the first!</p>
+          )}
+        </div>
+      </div>
+
+      {user && user.id === campaign.organizer_id && (
+        <div class="text-center pt-4 pb-8">
+          <a href={`/campaigns/${slug}/manage`} class="btn-secondary">
+            Manage Campaign
+          </a>
+        </div>
+      )}
+    </div>
+  </article>
+</Layout>

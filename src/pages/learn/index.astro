@@ -1,0 +1,59 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { guides } from '../../utils/learn';
+
+const categoryLabels: Record<string, string> = {
+  'getting-started': 'Getting Started',
+  'campaigning': 'Campaigning',
+  'measurement': 'Measurement',
+  'advocacy': 'Advocacy',
+};
+---
+
+<Layout
+  title="Guides"
+  description="Free guides on measuring noise, running campaigns, talking to HOAs, speaking at council meetings, and choosing electric equipment."
+>
+
+<section class="section">
+  <div class="container-narrow">
+    <div class="text-center mb-16">
+      <p class="text-brand-600 font-semibold text-sm tracking-wider uppercase mb-4">Learn</p>
+      <h1 class="text-4xl md:text-6xl font-display font-bold text-brand-900 leading-tight mb-6">
+        Guides &amp; Resources
+      </h1>
+      <p class="text-xl text-earth-500 max-w-2xl mx-auto">
+        Everything you need to understand the issue, build a campaign, measure noise, and win.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap justify-center gap-2 mb-12">
+      {Object.entries(categoryLabels).map(([key, label]) => (
+        <a href={`#${key}`} class="px-4 py-2 rounded-full bg-earth-100 text-earth-700 text-sm font-medium hover:bg-brand-100 hover:text-brand-700 transition-colors">
+          {label}
+        </a>
+      ))}
+    </div>
+
+    {Object.entries(categoryLabels).map(([category, label]) => {
+      const categoryGuides = guides.filter(g => g.category === category);
+      return (
+        <div id={category} class="mb-16">
+          <h2 class="text-2xl font-display font-bold text-brand-900 mb-6 pb-3 border-b border-earth-200">
+            {label}
+          </h2>
+          <div class="grid sm:grid-cols-2 gap-4">
+            {categoryGuides.map(guide => (
+              <a href={`/learn/${guide.slug}`} class="block bg-white border border-earth-200 rounded-xl p-6 hover:border-brand-300 hover:shadow-sm transition-all">
+                <h3 class="font-display font-bold text-brand-900 mb-2">{guide.title}</h3>
+                <p class="text-sm text-earth-500">{guide.description}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</section>
+
+</Layout>

@@ -1,0 +1,98 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../../utils/auth';
+import { getDBFromLocals } from '../../../utils/db';
+
+export const prerender = false;
+
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+
+if (!user) {
+  return new Response(null, { status: 302, headers: { Location: '/api/auth/sign-in?redirect=/account/measurements' } });
+}
+
+const db = getDBFromLocals(Astro.locals);
+const measurements = db.prepare(`
+  SELECT m.*, c.title as campaign_title, c.slug as campaign_slug
+  FROM measurements m
+  LEFT JOIN campaigns c ON m.campaign_id = c.id
+  WHERE m.user_id = ?
+  ORDER BY m.created_at DESC
+`).bind(user.id).all();
+
+const justUploaded = Astro.url.searchParams.get('msg') === 'uploaded';
+---
+
+<Layout title="My Measurements" description="Your uploaded noise measurement data." user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <a href="/dashboard" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; Dashboard
+    </a>
+
+    <div class="flex items-center justify-between mb-10">
+      <div>
+        <h1 class="text-4xl font-display font-bold text-brand-900 mb-2">My Measurements</h1>
+        <p class="text-earth-500">{measurements.results?.length || 0} measurements uploaded</p>
+      </div>
+      <a href="/measure/upload" class="btn-primary">Upload New</a>
+    </div>
+
+    {justUploaded && (
+      <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-8 text-green-700 text-sm text-center">
+        Measurement submitted successfully!
+      </div>
+    )}
+
+    {Array.isArray(measurements.results) && measurements.results.length > 0 ? (
+      <div class="space-y-4">
+        {measurements.results.map((m: any) => (
+          <div class="bg-white border border-earth-200 rounded-xl p-5">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-lg font-bold text-brand-600">{m.peak_db} dB</span>
+                  {m.average_db && <span class="text-sm text-earth-400">avg {m.average_db} dB</span>}
+                  <span class={`text-xs px-2 py-0.5 rounded-full ${
+                    m.privacy === 'public' ? 'bg-green-100 text-green-700' :
+                    m.privacy === 'anonymous' ? 'bg-brand-100 text-brand-700' :
+                    'bg-earth-100 text-earth-600'
+                  }`}>
+                    {m.privacy === 'anonymous' ? 'Anonymous' : m.privacy}
+                  </span>
+                </div>
+                <p class="text-sm text-earth-600">
+                  {new Date(m.measurement_date).toLocaleDateString()}
+                  {m.measurement_time ? ` at ${m.measurement_time}` : ''}
+                  {m.source_description ? ` — ${m.source_description}` : ''}
+                </p>
+              </div>
+              <span class="text-xs text-earth-400">{m.device_type} · {m.device_model || 'Unknown device'}</span>
+            </div>
+            {m.campaign_title ? (
+              <a href={`/campaigns/${m.campaign_slug}`} class="text-brand-600 text-sm font-medium hover:text-brand-800">
+                Attached to: {m.campaign_title} &rarr;
+              </a>
+            ) : (
+              <p class="text-xs text-earth-400">Not attached to a campaign</p>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div class="bg-earth-50 rounded-xl p-12 text-center">
+        <p class="text-earth-500 mb-6">You haven't uploaded any measurements yet.</p>
+        <a href="/measure/upload" class="btn-primary">Upload Your First Measurement</a>
+      </div>
+    )}
+
+    {measurements.results?.length > 0 && (
+      <div class="text-center mt-8">
+        <a href="/measure/upload" class="btn-secondary">Upload Another</a>
+      </div>
+    )}
+  </div>
+</section>
+
+</Layout>

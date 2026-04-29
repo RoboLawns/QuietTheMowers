@@ -1,0 +1,169 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../utils/auth';
+import { getDBFromLocals } from '../../utils/db';
+
+export const prerender = false;
+
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+
+if (!user) {
+  return new Response(null, { status: 302, headers: { Location: '/api/auth/sign-in?redirect=/measure/upload' } });
+}
+
+let message = '';
+let messageType = 'success';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const db = getDBFromLocals(Astro.locals);
+
+    const id = crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO measurements (id, user_id, campaign_id, device_type, device_model, measurement_date, measurement_time, lat, lng, zip, peak_db, average_db, duration_seconds, source_description, privacy)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      id,
+      user.id,
+      formData.get('campaign_id')?.toString() || null,
+      formData.get('device_type')?.toString() || 'other',
+      formData.get('device_model')?.toString() || null,
+      formData.get('measurement_date')?.toString(),
+      formData.get('measurement_time')?.toString() || null,
+      parseFloat(formData.get('lat')?.toString() || '0') || null,
+      parseFloat(formData.get('lng')?.toString() || '0') || null,
+      formData.get('zip')?.toString() || null,
+      parseFloat(formData.get('peak_db')?.toString() || '0'),
+      parseFloat(formData.get('average_db')?.toString() || '0') || null,
+      parseInt(formData.get('duration_seconds')?.toString() || '0') || null,
+      formData.get('source_description')?.toString() || null,
+      formData.get('privacy')?.toString() || 'private'
+    ).run();
+
+    message = 'Measurement submitted successfully!';
+    return new Response(null, { status: 302, headers: { Location: '/account/measurements?msg=uploaded' } });
+  } catch (e) {
+    message = 'Failed to submit measurement.';
+    messageType = 'error';
+  }
+}
+
+// Get user's campaigns for the dropdown
+const db = getDBFromLocals(Astro.locals);
+const userCampaigns = db.prepare('SELECT id, title FROM campaigns WHERE organizer_id = ?').bind(user.id).all();
+---
+
+<Layout title="Upload Measurements" description="Submit your noise measurement data." user={user}>
+
+<section class="section">
+  <div class="container-narrow">
+    <a href="/measure" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">
+      &larr; Back to Measure
+    </a>
+
+    <div class="text-center mb-10">
+      <h1 class="text-4xl font-display font-bold text-brand-900 mb-4">Upload Measurement Data</h1>
+      <p class="text-lg text-earth-500">Submit your noise readings. Attach them to a campaign or save them privately.</p>
+    </div>
+
+    {message && (
+      <div class={`rounded-xl p-4 mb-8 text-sm text-center ${messageType === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+        {message}
+      </div>
+    )}
+
+    <div class="bg-white border border-earth-200 rounded-2xl p-8">
+      <form method="POST" class="space-y-5">
+        <div class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label for="device_type" class="block text-sm font-medium text-earth-700 mb-1.5">Device Type *</label>
+            <select id="device_type" name="device_type" required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <option value="rental">Rental (from QTM)</option>
+              <option value="owned">Owned Meter</option>
+              <option value="smartphone">Smartphone App</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label for="device_model" class="block text-sm font-medium text-earth-700 mb-1.5">Device Model</label>
+            <input type="text" id="device_model" name="device_model" placeholder="e.g. Reed R8050" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label for="measurement_date" class="block text-sm font-medium text-earth-700 mb-1.5">Date *</label>
+            <input type="date" id="measurement_date" name="measurement_date" required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="measurement_time" class="block text-sm font-medium text-earth-700 mb-1.5">Time</label>
+            <input type="time" id="measurement_time" name="measurement_time" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-3 gap-5">
+          <div>
+            <label for="peak_db" class="block text-sm font-medium text-earth-700 mb-1.5">Peak dB(A) *</label>
+            <input type="number" id="peak_db" name="peak_db" required step="0.1" min="20" max="140" placeholder="e.g. 92.5" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="average_db" class="block text-sm font-medium text-earth-700 mb-1.5">Average dB(A)</label>
+            <input type="number" id="average_db" name="average_db" step="0.1" min="20" max="140" placeholder="e.g. 78.3" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="duration_seconds" class="block text-sm font-medium text-earth-700 mb-1.5">Duration (seconds)</label>
+            <input type="number" id="duration_seconds" name="duration_seconds" min="1" placeholder="e.g. 300" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+
+        <div>
+          <label for="source_description" class="block text-sm font-medium text-earth-700 mb-1.5">Source Description</label>
+          <input type="text" id="source_description" name="source_description" placeholder='e.g. "Neighbor\'s gas mower"' class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label for="lat" class="block text-sm font-medium text-earth-700 mb-1.5">Latitude</label>
+            <input type="number" id="lat" name="lat" step="any" placeholder="e.g. 40.0150" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="lng" class="block text-sm font-medium text-earth-700 mb-1.5">Longitude</label>
+            <input type="number" id="lng" name="lng" step="any" placeholder="e.g. -105.2705" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-5">
+          <div>
+            <label for="zip" class="block text-sm font-medium text-earth-700 mb-1.5">ZIP Code</label>
+            <input type="text" id="zip" name="zip" pattern="[0-9]{5}" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 placeholder:text-earth-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="privacy" class="block text-sm font-medium text-earth-700 mb-1.5">Privacy *</label>
+            <select id="privacy" name="privacy" required class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <option value="public">Public (with your name)</option>
+              <option value="anonymous">Anonymous Public (location only)</option>
+              <option value="private">Private (only you can see)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="campaign_id" class="block text-sm font-medium text-earth-700 mb-1.5">Attach to Campaign</label>
+          <select id="campaign_id" name="campaign_id" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="">None (personal record)</option>
+            {Array.isArray(userCampaigns.results) && userCampaigns.results.map((c: any) => (
+              <option value={c.id}>{c.title}</option>
+            ))}
+          </select>
+        </div>
+
+        <button type="submit" class="btn-primary w-full text-lg py-4">
+          Submit Measurement
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+</Layout>
