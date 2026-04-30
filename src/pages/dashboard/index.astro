@@ -28,20 +28,71 @@ const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 // Auto-sync if Clerk session exists but no DB user
 if (clerkUserId && !user) {
   const db = getDB(env);
+
+// Try to get user via Cookie JWT directly (bypasses locals.auth which doesn't work in Workers)
+let freshUser: AuthUser | null = null;
+
+if (clerkUserId) {
+  // Check direct DB lookup by auth_provider_id
+  let result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
+
+  // Auto-create if not found
+  if (!result) {
+    const id = crypto.randomUUID();
+    db.prepare(
+      'INSERT OR IGNORE INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)'
+    ).bind(id, clerkUserId, clerkEmail || `${clerkUserId}@clerk.user`, clerkEmail?.split('@')[0] || 'User', 'user').run();
+    result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
+  }
+
+  if (result) {
+    freshUser = {
+      id: result.id,
+      email: result.email,
+      displayName: result.display_name || clerkEmail?.split('@')[0] || 'User',
+      avatarUrl: result.avatar_url || '',
+      role: result.role || 'user',
+      location_city: result.location_city,
+      location_state: result.location_state,
+    };
+  }
+}
+
+// Fallback: try getCurrentUser if Clerk middleware is available
+if (!freshUser) {
+  freshUser = await getCurrentUser(Astro.locals, env) as AuthUser | null;
+}
+
+const needsSignIn = !freshUser && !clerkUserId;
+
+// Cookie-only auth (no DB user sync'd)
+const sessionUser = clerkUserId && !freshUser ? { 
+  id: clerkUserId, 
+  email: clerkEmail || `${clerkUserId}@clerk.user`,
+  displayName: clerkEmail?.split('@')[0] || 'User' 
+} : null;
   const id = crypto.randomUUID();
   db.prepare(
     'INSERT OR IGNORE INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)'
   ).bind(id, clerkUserId, clerkEmail || `${clerkUserId}@clerk.user`, clerkEmail?.split('@')[0] || 'User', 'user').run();
+  
+  // Direct DB lookup by auth_provider_id (bypasses getCurrentUser which needs locals.auth)
+  const result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
+  if (result) {
+    freshUser = freshUser || {
+      id: result.id,
+      email: result.email,
+      displayName: result.display_name || clerkEmail?.split('@')[0] || 'User',
+      avatarUrl: result.avatar_url || '',
+      role: result.role || 'user',
+      location_city: result.location_city,
+      location_state: result.location_state,
+    };
+  }
 }
 
-const db = getDB(env);
-
-// Re-fetch user after sync
-let freshUser = clerkUserId ? (await getCurrentUser(Astro.locals, env)) : user;
-const needsSignIn = !freshUser && !clerkUserId;
-
-// If Clerk session exists but no DB user, show basic dashboard from cookie info
-const sessionUser = clerkUserId ? { 
+// If still no DB user but Clerk session exists, use session data
+const sessionUser = clerkUserId && !freshUser ? { 
   id: clerkUserId, 
   email: clerkEmail || `${clerkUserId}@clerk.user`,
   displayName: clerkEmail?.split('@')[0] || 'User' 
