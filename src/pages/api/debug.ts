@@ -5,7 +5,7 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {
   try {
-    const info: Record<string, unknown> = {};
+    const info: Record<string, unknown> = { deployedAt: '2026-04-30T17:34:00Z' };
     try { info.hasAuth = typeof (locals as any)?.auth === 'function'; } catch (e: any) { info.hasAuth = e.message; }
     try {
       if (typeof (locals as any)?.auth === 'function') {
