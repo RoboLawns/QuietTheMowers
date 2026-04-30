@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getCurrentUser } from '../utils/auth';
+import { SignUp } from '@clerk/astro/components';
 
 export const prerender = false;
 
@@ -18,9 +19,7 @@ if (user) {
         <h1 class="text-3xl font-display font-bold text-brand-900 mb-3">Join the Movement</h1>
         <p class="text-earth-500">Create an account to start campaigns, sign petitions, and track your impact.</p>
       </div>
-      <div class="bg-white border border-earth-200 rounded-2xl p-8">
-        <a href="/sign-in" class="btn-primary w-full">Sign In Instead</a>
-      </div>
+      <SignUp signInUrl="/sign-in" afterSignUpUrl="/dashboard" />
       <p class="text-center text-sm text-earth-400 mt-6">
         Already have an account? <a href="/sign-in" class="text-brand-600 hover:text-brand-800 font-medium">Sign in</a>
       </p>

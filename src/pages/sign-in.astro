@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getCurrentUser } from '../utils/auth';
+import { SignIn } from '@clerk/astro/components';
 
 export const prerender = false;
 
@@ -18,9 +19,7 @@ if (user) {
         <h1 class="text-3xl font-display font-bold text-brand-900 mb-3">Welcome Back</h1>
         <p class="text-earth-500">Sign in to manage your campaigns and track your impact.</p>
       </div>
-      <div class="bg-white border border-earth-200 rounded-2xl p-8">
-        <div id="clerk-captcha"></div>
-      </div>
+      <SignIn signUpUrl="/sign-up" afterSignInUrl="/dashboard" />
       <p class="text-center text-sm text-earth-400 mt-6">
         Don't have an account? <a href="/sign-up" class="text-brand-600 hover:text-brand-800 font-medium">Sign up</a>
       </p>
