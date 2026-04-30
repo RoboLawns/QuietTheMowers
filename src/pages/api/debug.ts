@@ -15,6 +15,9 @@ export const GET: APIRoute = async ({ locals }) => {
       }
     } catch (e: any) { info.authError = e.message; }
     try { info.hasEnvDB = Boolean((env as any)?.DB); } catch (e: any) { info.hasEnvDB = e.message; }
+    try { info.envKeys = Object.keys(env as object).filter(k => !k.startsWith('__')); } catch (e: any) { info.envKeys = e.message; }
+    try { info.hasEnvClerk = Boolean((env as any)?.CLERK_SECRET_KEY); } catch (e: any) { info.hasEnvClerk = e.message; }
+    try { info.hasProcessClerk = Boolean((globalThis as any)?.process?.env?.CLERK_SECRET_KEY); } catch (e: any) { info.hasProcessClerk = e.message; }
     try {
       const db = (env as any)?.DB;
       if (db) {
