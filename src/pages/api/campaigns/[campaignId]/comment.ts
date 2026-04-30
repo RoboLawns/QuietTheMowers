@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCurrentUser } from '../../../../utils/auth';
-import { getDBFromLocals } from '../../../../utils/db';
+import { getDB } from '../../../../utils/db';
 
 export const prerender = false;
 

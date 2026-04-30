@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../../utils/auth';
-import { getDBFromLocals } from '../../utils/db';
+import { getDB } from '../../utils/db';
 import { env } from 'cloudflare:workers';
 
 export const prerender = false;
