@@ -19,6 +19,11 @@ export const GET: APIRoute = async ({ locals }) => {
     try { info.hasEnvClerk = Boolean((env as any)?.CLERK_SECRET_KEY); } catch (e: any) { info.hasEnvClerk = e.message; }
     try { info.hasProcessClerk = Boolean((globalThis as any)?.process?.env?.CLERK_SECRET_KEY); } catch (e: any) { info.hasProcessClerk = e.message; }
     try {
+      const cookieHeader = Astro.request.headers.get('cookie') || '';
+      info.cookieKeys = cookieHeader.split(';').map((c: string) => c.trim().split('=')[0]).filter(Boolean);
+      info.cookieCount = info.cookieKeys.length;
+    } catch (e: any) { info.cookieKeys = e.message; }
+    try {
       const db = (env as any)?.DB;
       if (db) {
         const r = db.prepare('SELECT COUNT(*) as count FROM users').all();
