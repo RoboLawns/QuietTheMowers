@@ -31,9 +31,9 @@ try {
     },
   ];
 
-  // Inject KV binding for sessions
+  // Inject KV binding for sessions (real namespace from Cloudflare)
   config.kv_namespaces = [
-    { binding: 'SESSION', id: 'session-dev' },
+    { binding: 'SESSION', id: 'cc41ce95d66c419e8bf05250cf2f0a0a' },
   ];
 
   // Write patched config to dist/server/wrangler.json (what wrangler deploy reads)
