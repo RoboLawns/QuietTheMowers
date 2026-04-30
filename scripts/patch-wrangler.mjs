@@ -27,6 +27,9 @@ try {
     delete config[key];
   }
 
+  // Add Pages-required fields
+  config.pages_build_output_dir = '../client';
+
   writeFileSync(wranglerPath, JSON.stringify(config, null, 2));
   console.log('✓ Patched wrangler.json for Cloudflare Pages');
 } catch (e) {
