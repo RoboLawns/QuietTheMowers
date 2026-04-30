@@ -4,7 +4,6 @@ import { join } from 'node:path';
 
 const distPath = join(process.cwd(), 'dist');
 const serverPath = join(distPath, 'server');
-const functionsPath = join(distPath, 'functions');
 
 const wranglerPath = join(serverPath, 'wrangler.json');
 
@@ -36,13 +35,23 @@ try {
   writeFileSync(wranglerPath, JSON.stringify(config, null, 2));
   console.log('✓ Patched wrangler.json for Cloudflare Pages');
 
-  // Move server/ to functions/ so Cloudflare Pages detects it
-  if (existsSync(serverPath)) {
-    if (existsSync(functionsPath)) {
-      rmSync(functionsPath, { recursive: true });
+  // Cloudflare Pages expects _worker.js in the output root for SSR
+  // The Cloudflare adapter generates entry.mjs in dist/server/
+  const entryPath = join(serverPath, 'entry.mjs');
+  const chunksPath = join(serverPath, 'chunks');
+
+  if (existsSync(entryPath)) {
+    // Move entry.mjs to dist/_worker.js
+    renameSync(entryPath, join(distPath, '_worker.js'));
+    // Move chunks alongside
+    if (existsSync(chunksPath)) {
+      const destChunks = join(distPath, 'chunks');
+      if (existsSync(destChunks)) rmSync(destChunks, { recursive: true });
+      renameSync(chunksPath, destChunks);
     }
-    renameSync(serverPath, functionsPath);
-    console.log('✓ Moved dist/server/ to dist/functions/');
+    // Clean up server/functions dir
+    rmSync(serverPath, { recursive: true });
+    console.log('✓ Moved entry.mjs to dist/_worker.js');
   }
 } catch (e) {
   console.error('Failed to patch wrangler.json:', e);
