@@ -1,0 +1,14 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+export const prerender = false;
+---
+
+<Layout title="SSR Test">
+  <section class="section">
+    <div class="container-narrow text-center">
+      <h1 class="text-4xl font-bold text-brand-900">SSR is working</h1>
+      <p class="text-earth-500 mt-4">This page renders on the server. Time: {new Date().toISOString()}</p>
+    </div>
+  </section>
+</Layout>
