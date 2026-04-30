@@ -2,10 +2,11 @@
 import Layout from '../../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../../utils/auth';
 import { getDBFromLocals } from '../../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 
 if (!user) {
   return new Response(null, { status: 302, headers: { Location: '/sign-in?redirect=/measure/upload' } });
@@ -17,7 +18,7 @@ let messageType = 'success';
 if (Astro.request.method === 'POST') {
   try {
     const formData = await Astro.request.formData();
-    const db = getDBFromLocals(Astro.locals);
+    const db = getDB(env);
 
     const id = crypto.randomUUID();
     db.prepare(`
@@ -50,7 +51,7 @@ if (Astro.request.method === 'POST') {
 }
 
 // Get user's campaigns for the dropdown
-const db = getDBFromLocals(Astro.locals);
+const db = getDB(env);
 const userCampaigns = db.prepare('SELECT id, title FROM campaigns WHERE organizer_id = ?').bind(user.id).all();
 ---
 

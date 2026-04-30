@@ -1,7 +1,7 @@
-import { getDBFromLocals } from './db';
+import { getDB } from './db';
 
 // In production, Clerk provides the session via Astro.locals.auth()
-// For development without Clerk configured, use a mock session
+// For Cloudflare Workers, env vars come from import { env } from 'cloudflare:workers'
 
 export interface AuthUser {
   id: string;
@@ -9,19 +9,21 @@ export interface AuthUser {
   displayName: string;
   avatarUrl: string;
   role: 'user' | 'organizer' | 'admin';
+  location_city?: string;
+  location_state?: string;
 }
 
 // Get the current user from Clerk
-export async function getCurrentUser(_locals: App.Locals): Promise<AuthUser | null> {
+export async function getCurrentUser(locals: App.Locals, env?: any): Promise<AuthUser | null> {
   try {
-    const locals = _locals as any;
+    const l = locals as any;
 
-    // @clerk/astro provides locals.auth() which returns { userId } or a promise
-    if (typeof locals?.auth === 'function') {
-      const authResult = await locals.auth();
+    // @clerk/astro provides locals.auth()
+    if (typeof l?.auth === 'function') {
+      const authResult = await l.auth();
       const userId = authResult?.userId;
       if (userId) {
-        const db = getDBFromLocals(_locals);
+        const db = env ? getDB(env) : getDB(null);
         const result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
         const user = result?.results?.[0] as any;
         if (user) {
@@ -31,6 +33,8 @@ export async function getCurrentUser(_locals: App.Locals): Promise<AuthUser | nu
             displayName: user.display_name ?? 'User',
             avatarUrl: user.avatar_url ?? '',
             role: user.role as AuthUser['role'],
+            location_city: user.location_city,
+            location_state: user.location_state,
           };
         }
       }

@@ -1,11 +1,12 @@
 import type { APIRoute } from 'astro';
 import { getCurrentUser } from '../../../utils/auth';
 import { getDBFromLocals } from '../../../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
-  const user = await getCurrentUser(locals);
+  const user = await getCurrentUser(locals, env);
   if (!user) {
     return new Response(null, { status: 302, headers: { Location: '/sign-in?redirect=/campaigns/new' } });
   }
@@ -27,7 +28,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
       return new Response(JSON.stringify({ error: 'Title, slug, and target name are required.' }), { status: 400 });
     }
 
-    const db = getDBFromLocals(locals);
+    const db = getDB(env);
 
     // Check slug uniqueness
     const existing = db.prepare('SELECT id FROM campaigns WHERE slug = ?').bind(slug).first();

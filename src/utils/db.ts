@@ -20,14 +20,27 @@ export function generateId(): string {
   return crypto.randomUUID();
 }
 
-// Get DB from Astro locals
-export function getDBFromLocals(locals: any) {
-  // Cloudflare D1 binding (production / wrangler dev)
-  if (locals?.runtime?.env?.DB) {
-    return locals.runtime.env.DB;
+// Get DB from Worker env (Astro 6 Cloudflare adapter)
+// In .astro frontmatter: import { env } from 'cloudflare:workers'; getDB(env);
+export function getDB(env: any) {
+  if (env?.DB) {
+    return env.DB;
   }
+  return createMockDB();
+}
 
-  // No D1 available — return mock that doesn't crash
+// Legacy — for pages that haven't migrated to env import yet
+export function getDBFromLocals(locals: any) {
+  // Try Astro v5 pattern (deprecated but fallback)
+  try {
+    if (locals?.runtime?.env?.DB) {
+      return locals.runtime.env.DB;
+    }
+  } catch {}
+  return createMockDB();
+}
+
+function createMockDB() {
   return {
     prepare(_sql: string) {
       return {

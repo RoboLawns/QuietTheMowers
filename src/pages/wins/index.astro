@@ -2,11 +2,12 @@
 import Layout from '../../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../../utils/auth';
 import { getDBFromLocals } from '../../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-const db = getDBFromLocals(Astro.locals);
-const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const db = getDB(env);
+const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 
 // Get won campaigns as wins
 const wins = db.prepare(`

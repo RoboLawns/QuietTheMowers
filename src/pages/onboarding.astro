@@ -1,11 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../utils/auth';
-import { getDBFromLocals } from '../utils/db';
+import { getDB } from '../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 
 if (!user) {
   return Astro.redirect('/sign-in');
@@ -19,7 +20,7 @@ if (Astro.request.method === 'POST') {
   try {
     const formData = await Astro.request.formData();
     action = formData.get('action')?.toString() || '';
-    const db = getDBFromLocals(Astro.locals);
+    const db = getDB(env);
     const userId = user.id;
 
     if (action === 'save_location') {

@@ -2,16 +2,17 @@
 import Layout from '../../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../../utils/auth';
 import { getDBFromLocals } from '../../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 
 if (!user || user.role !== 'admin') {
   return new Response(null, { status: 302, headers: { Location: '/' } });
 }
 
-const db = getDBFromLocals(Astro.locals);
+const db = getDB(env);
 
 const pendingTestimonials = db.prepare('SELECT * FROM testimonials WHERE status = ? ORDER BY created_at DESC').bind('pending').all();
 const pendingComments = db.prepare('SELECT c.*, u.display_name as author_name FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.status = ? ORDER BY c.created_at DESC').bind('flagged').all();

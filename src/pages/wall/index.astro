@@ -2,12 +2,13 @@
 import Layout from '../../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../../utils/auth';
 import { getDBFromLocals } from '../../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
 // Get approved testimonials
-const db = getDBFromLocals(Astro.locals);
-const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const db = getDB(env);
+const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 
 const urlState = Astro.url.searchParams.get('state') || '';
 const urlFeatured = Astro.url.searchParams.get('featured') || '';

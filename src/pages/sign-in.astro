@@ -5,7 +5,7 @@ import { SignIn } from '@clerk/astro/components';
 
 export const prerender = false;
 
-const user = await getCurrentUser(Astro.locals);
+const user = await getCurrentUser(Astro.locals, env);
 
 if (user) {
   return Astro.redirect('/dashboard');

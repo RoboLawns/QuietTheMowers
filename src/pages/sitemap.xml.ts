@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getDBFromLocals } from '../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
