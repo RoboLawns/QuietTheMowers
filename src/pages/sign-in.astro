@@ -18,13 +18,9 @@ if (user) {
         <h1 class="text-3xl font-display font-bold text-brand-900 mb-3">Welcome Back</h1>
         <p class="text-earth-500">Sign in to manage your campaigns and track your impact.</p>
       </div>
-
-      <div id="clerk-sign-in" class="bg-white border border-earth-200 rounded-2xl p-8">
-        <p class="text-center text-earth-400">
-          Clerk auth loading...
-        </p>
+      <div class="bg-white border border-earth-200 rounded-2xl p-8">
+        <div id="clerk-component"></div>
       </div>
-
       <p class="text-center text-sm text-earth-400 mt-6">
         Don't have an account? <a href="/sign-up" class="text-brand-600 hover:text-brand-800 font-medium">Sign up</a>
       </p>
@@ -33,17 +29,23 @@ if (user) {
 </Layout>
 
 <script>
-  import { Clerk } from '@clerk/clerk-js';
-
-  const clerk = new Clerk({import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY});
-  await clerk.load();
-
-  if (clerk.user) {
-    window.location.href = '/dashboard';
+  const pubKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (pubKey && !pubKey.includes('placeholder')) {
+    const script = document.createElement('script');
+    script.src = 'https://js.clerk.com/headless/headless.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.setAttribute('data-clerk-publishable-key', pubKey);
+    document.head.appendChild(script);
+    script.onload = () => {
+      if (window.Clerk) {
+        window.Clerk.load().then(() => {
+          window.Clerk.mountSignIn(document.getElementById('clerk-component')!, {
+            signUpUrl: '/sign-up',
+            afterSignInUrl: '/dashboard',
+          });
+        });
+      }
+    };
   }
-
-  clerk.mountSignIn(document.getElementById('clerk-sign-in')!, {
-    signUpUrl: '/sign-up',
-    afterSignInUrl: '/dashboard',
-  });
 </script>
