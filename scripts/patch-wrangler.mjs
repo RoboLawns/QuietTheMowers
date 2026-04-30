@@ -16,8 +16,25 @@ try {
   delete config.userConfigPath;
   delete config.pages_build_output_dir;
 
-  // Keep assets but ensure it's not treated as Pages config
-  // (pages_build_output_dir was the field triggering Pages validation)
+  // Strip fields that cause Worker deployment conflicts
+  delete config.topLevelName;
+  delete config.configPath;
+  delete config.userConfigPath;
+  delete config.pages_build_output_dir;
+
+  // Inject D1 binding (adapter can't find it without root wrangler.toml)
+  config.d1_databases = [
+    {
+      binding: 'DB',
+      database_name: 'qtm-db',
+      database_id: '0715ecc3-0eb0-4dbc-9b82-62c3d8290cc7',
+    },
+  ];
+
+  // Inject KV binding for sessions
+  config.kv_namespaces = [
+    { binding: 'SESSION', id: 'session-dev' },
+  ];
 
   // Write patched config to dist/server/wrangler.json (what wrangler deploy reads)
   writeFileSync(serverConfig, JSON.stringify(config, null, 2));
