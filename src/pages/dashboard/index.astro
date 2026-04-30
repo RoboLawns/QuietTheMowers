@@ -9,11 +9,17 @@ export const prerender = false;
 const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 
 if (!user) {
-  return new Response(null, { status: 302, headers: { Location: '/sign-in?redirect=/dashboard' } });
+  return Astro.redirect('/sign-in?redirect=/dashboard');
 }
 
 const db = getDB(env);
 
+// Onboarding redirect
+if (!user.location_city || !user.location_state) {
+  return Astro.redirect('/onboarding');
+}
+
+// User stats
 const myCampaigns = db.prepare(`
   SELECT c.*,
     (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
@@ -23,122 +29,235 @@ const myCampaigns = db.prepare(`
 `).bind(user.id).all();
 
 const mySignatures = db.prepare(`
-  SELECT s.*, c.title as campaign_title, c.slug as campaign_slug
+  SELECT s.*, c.title as campaign_title, c.slug as campaign_slug, c.status as campaign_status
   FROM signatures s
   LEFT JOIN campaigns c ON s.campaign_id = c.id
   WHERE s.email = ?
   ORDER BY s.created_at DESC
 `).bind(user.email).all();
 
+const myMeasurements = db.prepare('SELECT COUNT(*) as count FROM measurements WHERE user_id = ?').bind(user.id).first() as any;
+const myTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials WHERE user_id = ?').bind(user.id).first() as any;
+
 const totalSigsGathered = db.prepare(`
   SELECT COUNT(*) as count FROM signatures s
   JOIN campaigns c ON s.campaign_id = c.id
   WHERE c.organizer_id = ?
 `).bind(user.id).first() as any;
+
+const campaignsList = (myCampaigns.results || []) as any[];
+const signaturesList = (mySignatures.results || []) as any[];
+
+// Local campaigns (in user's state)
+const localCampaigns = db.prepare(`
+  SELECT c.*, u.display_name as organizer_name,
+    (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
+  FROM campaigns c
+  LEFT JOIN users u ON c.organizer_id = u.id
+  WHERE c.location_state = ? AND c.status = 'active' AND c.organizer_id != ?
+  ORDER BY c.created_at DESC
+  LIMIT 4
+`).bind(user.location_state, user.id).all();
+
+const localList = (localCampaigns.results || []) as any[];
+
+// Determine action prompts
+const hasSignedNational = signaturesList.some(s => s.campaign_slug === 'national-quiet-neighborhoods-petition');
+const hasStartedCampaign = campaignsList.length > 0;
+const hasUploadedMeasurement = (myMeasurements?.count || 0) > 0;
+const hasWrittenTestimonial = (myTestimonials?.count || 0) > 0;
+
+// Just onboarded?
+const justOnboarded = Astro.url.searchParams.get('onboarded') === '1';
 ---
 
-<Layout title="Dashboard" description="Your personal campaign dashboard" user={user}>
+<Layout title="Dashboard" description="Your dashboard" user={user}>
 
 <section class="section">
   <div class="container-narrow">
-    <h1 class="text-4xl font-display font-bold text-brand-900 mb-2">Dashboard</h1>
-    <p class="text-lg text-earth-500 mb-12">Welcome back, {user.displayName || 'Organizer'}.</p>
 
-    <!-- Stats Bar -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
+    <!-- Welcome banner -->
+    {justOnboarded ? (
+      <div class="bg-brand-50 border border-brand-200 rounded-2xl p-5 mb-8 flex items-center gap-4">
+        <div class="text-2xl">👋</div>
+        <div>
+          <p class="font-semibold text-brand-900">Welcome to Quiet The Mowers!</p>
+          <p class="text-sm text-earth-500">Your account is set up. Pick an action below to get started.</p>
+        </div>
+      </div>
+    ) : null}
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-10">
+      <div>
+        <h1 class="text-4xl font-display font-bold text-brand-900">Hi, {user.displayName?.split(' ')[0] || 'Friend'}</h1>
+        <p class="text-earth-500 mt-1">{user.location_city}, {user.location_state}</p>
+      </div>
+      <div class="hidden sm:flex gap-3">
+        <a href="/account" class="text-sm text-earth-500 hover:text-brand-700">Profile</a>
+        <a href="/api/auth/sign-out" class="text-sm text-earth-500 hover:text-brand-700">Sign Out</a>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
       <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-display font-bold text-brand-600">{myCampaigns.results?.length || 0}</div>
-        <div class="text-xs text-earth-500 mt-1">Campaigns</div>
+        <div class="text-2xl font-display font-bold text-brand-600">{campaignsList.length}</div>
+        <div class="text-xs text-earth-500 mt-1">Campaigns Started</div>
       </div>
       <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
         <div class="text-2xl font-display font-bold text-brand-600">{totalSigsGathered?.count || 0}</div>
         <div class="text-xs text-earth-500 mt-1">Signatures Gathered</div>
       </div>
       <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-display font-bold text-brand-600">{mySignatures.results?.length || 0}</div>
+        <div class="text-2xl font-display font-bold text-brand-600">{signaturesList.length}</div>
         <div class="text-xs text-earth-500 mt-1">Petitions Signed</div>
       </div>
       <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
-        <a href="/campaigns/new" class="btn-accent text-xs px-4 py-2 w-full block text-center">
-          Start New Campaign
-        </a>
+        <div class="text-2xl font-display font-bold text-brand-600">{myMeasurements?.count || 0}</div>
+        <div class="text-xs text-earth-500 mt-1">Measurements</div>
+      </div>
+    </div>
+
+    <!-- Suggested Next Actions -->
+    <div class="bg-white border-2 border-accent-200 rounded-2xl p-6 mb-10">
+      <h2 class="text-xl font-display font-bold text-brand-900 mb-4">Your Next Actions</h2>
+      <div class="space-y-3">
+        {!hasSignedNational && (
+          <a href="/petition" class="flex items-center justify-between p-3 rounded-lg bg-accent-50 hover:bg-accent-100 transition-colors">
+            <div>
+              <div class="font-semibold text-accent-900 text-sm">Sign the National Petition</div>
+              <p class="text-xs text-earth-500">Show baseline support for the movement (1 minute)</p>
+            </div>
+            <span class="text-accent-700 font-bold">→</span>
+          </a>
+        )}
+        {!hasStartedCampaign && (
+          <a href="/campaigns/new" class="flex items-center justify-between p-3 rounded-lg bg-brand-50 hover:bg-brand-100 transition-colors">
+            <div>
+              <div class="font-semibold text-brand-900 text-sm">Start a Local Campaign</div>
+              <p class="text-xs text-earth-500">Target your HOA, city, or county (15 minutes)</p>
+            </div>
+            <span class="text-brand-700 font-bold">→</span>
+          </a>
+        )}
+        {!hasUploadedMeasurement && (
+          <a href="/measure/upload" class="flex items-center justify-between p-3 rounded-lg bg-earth-50 hover:bg-earth-100 transition-colors">
+            <div>
+              <div class="font-semibold text-earth-900 text-sm">Upload Your First Measurement</div>
+              <p class="text-xs text-earth-500">Document the noise in your neighborhood</p>
+            </div>
+            <span class="text-earth-700 font-bold">→</span>
+          </a>
+        )}
+        {!hasWrittenTestimonial && (
+          <a href="/wall/submit" class="flex items-center justify-between p-3 rounded-lg bg-earth-50 hover:bg-earth-100 transition-colors">
+            <div>
+              <div class="font-semibold text-earth-900 text-sm">Share Your Story</div>
+              <p class="text-xs text-earth-500">Tell us about your first quiet morning</p>
+            </div>
+            <span class="text-earth-700 font-bold">→</span>
+          </a>
+        )}
+        {hasSignedNational && hasStartedCampaign && hasUploadedMeasurement && hasWrittenTestimonial && (
+          <p class="text-sm text-earth-500 text-center py-4">You've done it all! Keep your campaigns going and watch the signatures grow.</p>
+        )}
       </div>
     </div>
 
     <!-- My Campaigns -->
-    <div class="mb-12">
-      <h2 class="text-2xl font-display font-bold text-brand-900 mb-6">My Campaigns</h2>
-      {Array.isArray(myCampaigns.results) && myCampaigns.results.length > 0 ? (
-        <div class="grid sm:grid-cols-2 gap-4">
-          {myCampaigns.results.map((c: any) => (
-            <a href={`/campaigns/${c.slug}/manage`} class="block bg-white border border-earth-200 rounded-xl p-6 hover:border-brand-300 hover:shadow-sm transition-all">
-              <div class="flex items-start justify-between mb-3">
-                <h3 class="font-display font-bold text-brand-900">{c.title}</h3>
-                <span class={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  c.status === 'active' ? 'bg-green-100 text-green-700' :
-                  c.status === 'won' ? 'bg-accent-100 text-accent-700' :
-                  c.status === 'draft' ? 'bg-earth-100 text-earth-600' :
-                  'bg-earth-100 text-earth-600'
-                }`}>{c.status}</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-sm text-earth-500">{c.signature_count || 0} of {c.goal_signatures} signatures</span>
-                <span class="text-brand-600 text-sm font-medium">Manage &rarr;</span>
-              </div>
-              <div class="mt-3 w-full bg-earth-200 rounded-full h-1">
-                <div class="bg-brand-500 h-1 rounded-full" style={`width: ${Math.min(100, ((c.signature_count || 0) / (c.goal_signatures || 1)) * 100)}%`}></div>
-              </div>
-            </a>
-          ))}
+    <div class="mb-10">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-display font-bold text-brand-900">My Campaigns</h2>
+        <a href="/campaigns/new" class="text-sm text-brand-600 font-semibold hover:text-brand-800">+ Start New</a>
+      </div>
+      {campaignsList.length > 0 ? (
+        <div class="space-y-3">
+          {campaignsList.map((c: any) => {
+            const progress = Math.min(100, Math.round(((c.signature_count || 0) / (c.goal_signatures || 1)) * 100));
+            return (
+              <a href={`/campaigns/${c.slug}/manage`} class="block bg-white border border-earth-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+                <div class="flex items-start justify-between mb-2">
+                  <h3 class="font-semibold text-brand-900">{c.title}</h3>
+                  <span class={`text-xs font-medium px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-100 text-green-700' : c.status === 'won' ? 'bg-accent-100 text-accent-700' : 'bg-earth-100 text-earth-600'}`}>{c.status}</span>
+                </div>
+                <p class="text-xs text-earth-500 mb-3">{c.target_name || c.location_city}</p>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm text-earth-600">{c.signature_count || 0} of {c.goal_signatures} signatures</span>
+                  <span class="text-brand-600 text-sm font-medium">Manage →</span>
+                </div>
+                <div class="w-full bg-earth-200 rounded-full h-1.5">
+                  <div class="bg-brand-500 h-1.5 rounded-full" style={`width: ${progress}%`}></div>
+                </div>
+              </a>
+            );
+          })}
         </div>
       ) : (
         <div class="bg-earth-50 rounded-xl p-8 text-center">
-          <p class="text-earth-500 mb-4">You haven't started any campaigns yet.</p>
-          <a href="/campaigns/new" class="btn-primary">Start Your First Campaign</a>
+          <p class="text-earth-500 mb-3">You haven't started a campaign yet.</p>
+          <a href="/campaigns/new" class="btn-primary text-sm">Start Your First Campaign</a>
         </div>
       )}
     </div>
+
+    <!-- Local Campaigns to Support -->
+    {localList.length > 0 && (
+      <div class="mb-10">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-4">
+          Active Campaigns in {user.location_state}
+        </h2>
+        <div class="grid sm:grid-cols-2 gap-3">
+          {localList.map((c: any) => {
+            const progress = Math.min(100, Math.round(((c.signature_count || 0) / (c.goal_signatures || 1)) * 100));
+            return (
+              <a href={`/campaigns/${c.slug}`} class="block bg-white border border-earth-200 rounded-xl p-4 hover:border-brand-300 transition-all">
+                <h3 class="font-semibold text-brand-900 text-sm mb-1">{c.title}</h3>
+                <p class="text-xs text-earth-500 mb-3">{c.location_city} · by {c.organizer_name || 'Organizer'}</p>
+                <div class="text-xs text-earth-600 mb-2">{c.signature_count || 0} of {c.goal_signatures}</div>
+                <div class="w-full bg-earth-200 rounded-full h-1">
+                  <div class="bg-brand-500 h-1 rounded-full" style={`width: ${progress}%`}></div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    )}
 
     <!-- Petitions I've Signed -->
-    <div class="mb-12">
-      <h2 class="text-2xl font-display font-bold text-brand-900 mb-6">Petitions I've Signed</h2>
-      {Array.isArray(mySignatures.results) && mySignatures.results.length > 0 ? (
-        <div class="space-y-3">
-          {mySignatures.results.map((s: any) => (
-            <a href={s.campaign_slug ? `/campaigns/${s.campaign_slug}` : '#'} class="block bg-white border border-earth-200 rounded-xl p-4 hover:border-brand-300 transition-all">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="font-semibold text-earth-900 text-sm">{s.campaign_title || 'Campaign'}</div>
-                  <div class="text-xs text-earth-400">Signed {new Date(s.created_at).toLocaleDateString()}</div>
-                </div>
-                {s.comment && <span class="text-xs text-earth-500 italic max-w-[200px] truncate">"{s.comment}"</span>}
+    {signaturesList.length > 0 && (
+      <div class="mb-10">
+        <h2 class="text-xl font-display font-bold text-brand-900 mb-4">Petitions I've Signed</h2>
+        <div class="space-y-2">
+          {signaturesList.map((s: any) => (
+            <a href={s.campaign_slug ? `/campaigns/${s.campaign_slug}` : '#'} class="flex items-center justify-between bg-white border border-earth-200 rounded-lg px-4 py-3 hover:border-brand-300 transition-all">
+              <div>
+                <div class="font-medium text-earth-900 text-sm">{s.campaign_title || 'Campaign'}</div>
+                <div class="text-xs text-earth-400">Signed {new Date(s.created_at).toLocaleDateString()}</div>
               </div>
+              {s.campaign_status === 'won' && <span class="text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full font-medium">Won!</span>}
             </a>
           ))}
         </div>
-      ) : (
-        <div class="bg-earth-50 rounded-xl p-8 text-center">
-          <p class="text-earth-500">You haven't signed any petitions yet.</p>
-          <a href="/campaigns" class="text-brand-600 font-medium text-sm hover:text-brand-800 mt-2 inline-block">Browse Campaigns &rarr;</a>
-        </div>
-      )}
-    </div>
+      </div>
+    )}
 
-    <!-- Quick Links -->
-    <div class="bg-white border border-earth-200 rounded-2xl p-8">
-      <h2 class="text-xl font-display font-bold text-brand-900 mb-6">Quick Links</h2>
-      <div class="grid sm:grid-cols-3 gap-4">
-        <a href="/measure" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
-          <div class="font-semibold text-brand-900 text-sm">Measure Noise</div>
-          <div class="text-xs text-earth-500 mt-1">Rent a meter or upload data</div>
+    <!-- Quick Tools -->
+    <div class="bg-white border border-earth-200 rounded-2xl p-6">
+      <h2 class="text-xl font-display font-bold text-brand-900 mb-4">Quick Tools</h2>
+      <div class="grid sm:grid-cols-3 gap-3">
+        <a href="/measure/upload" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
+          <div class="font-semibold text-brand-900 text-sm">📊 Upload Measurements</div>
+          <div class="text-xs text-earth-500 mt-1">Submit noise data</div>
         </a>
-        <a href="/ordinances" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
-          <div class="font-semibold text-brand-900 text-sm">Ordinance Library</div>
-          <div class="text-xs text-earth-500 mt-1">Find templates for your campaign</div>
+        <a href="/wall/submit" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
+          <div class="font-semibold text-brand-900 text-sm">📖 Share Your Story</div>
+          <div class="text-xs text-earth-500 mt-1">Add to the wall</div>
         </a>
-        <a href="/share" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
-          <div class="font-semibold text-brand-900 text-sm">Shareable Assets</div>
-          <div class="text-xs text-earth-500 mt-1">Yard signs, social tiles, posts</div>
+        <a href="/measure/rent" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
+          <div class="font-semibold text-brand-900 text-sm">🎚️ Rent a Sound Meter</div>
+          <div class="text-xs text-earth-500 mt-1">$15-25 shipping</div>
         </a>
       </div>
     </div>

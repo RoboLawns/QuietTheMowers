@@ -2,11 +2,13 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../../../utils/auth';
 import { getDB } from '../../../utils/db';
+import { env } from 'cloudflare:workers';
+import { sendSignatureConfirmation } from '../../../utils/email';
 
 export const prerender = false;
 
-const db = getDBFromLocals(Astro.locals);
-const user = await getCurrentUser(Astro.locals) as AuthUser | null;
+const db = getDB(env);
+const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 const { slug } = Astro.params;
 
 const campaign = db.prepare('SELECT * FROM campaigns WHERE slug = ? AND status = ?').bind(slug, 'active').first() as any;
@@ -44,6 +46,7 @@ if (Astro.request.method === 'POST') {
           'INSERT INTO signatures (id, campaign_id, name, email, zip, comment, display_publicly) VALUES (?, ?, ?, ?, ?, ?, ?)'
         ).bind(id, campaign.id, name, email, zip || null, comment || null, 1).run();
         justSigned = true;
+        sendSignatureConfirmation(env, email, name, campaign.title, slug || '').catch(() => {});
       }
     }
   } catch (e) {

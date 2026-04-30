@@ -47,29 +47,31 @@ export async function getCurrentUser(locals: App.Locals, env?: any): Promise<Aut
 }
 
 // Create or find user in our DB after Clerk sign-in
-export async function syncUser(locals: App.Locals, clerkUser: { id: string; email: string; name?: string; imageUrl?: string }) {
-  const db = getDBFromLocals(locals);
+// Returns { user, isNew } so caller can send welcome email if needed
+export async function syncUser(env: any, clerkUser: { id: string; email: string; name?: string; imageUrl?: string }) {
+  const db = getDB(env);
   const existing = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUser.id).first() as any;
 
   if (existing) {
-    // Update
     db.prepare(
       'UPDATE users SET email = ?, display_name = ?, avatar_url = ?, updated_at = datetime(\'now\') WHERE auth_provider_id = ?'
     ).bind(clerkUser.email, clerkUser.name ?? null, clerkUser.imageUrl ?? null, clerkUser.id).run();
-    return existing as AuthUser;
+    return { user: existing as AuthUser, isNew: false };
   }
 
-  // Create
   const id = crypto.randomUUID();
   db.prepare(
     'INSERT INTO users (id, auth_provider_id, email, display_name, avatar_url, role) VALUES (?, ?, ?, ?, ?, ?)'
   ).bind(id, clerkUser.id, clerkUser.email, clerkUser.name ?? null, clerkUser.imageUrl ?? null, 'user').run();
 
   return {
-    id,
-    email: clerkUser.email,
-    displayName: clerkUser.name ?? 'User',
-    avatarUrl: clerkUser.imageUrl ?? '',
-    role: 'user' as const,
+    user: {
+      id,
+      email: clerkUser.email,
+      displayName: clerkUser.name ?? 'User',
+      avatarUrl: clerkUser.imageUrl ?? '',
+      role: 'user' as const,
+    },
+    isNew: true,
   };
 }

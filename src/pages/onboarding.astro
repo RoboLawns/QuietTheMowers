@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../utils/auth';
 import { getDB } from '../utils/db';
 import { env } from 'cloudflare:workers';
+import { sendWelcomeEmail } from '../utils/email';
 
 export const prerender = false;
 
@@ -42,6 +43,8 @@ if (Astro.request.method === 'POST') {
         db.prepare('UPDATE users SET role = ?, updated_at = datetime(\'now\') WHERE id = ?')
           .bind(role, userId).run();
       }
+      // Send welcome email
+      sendWelcomeEmail(env, user.email, user.displayName).catch(() => {});
       return Astro.redirect('/dashboard?onboarded=1');
     }
   } catch (e) {

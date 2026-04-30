@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import { getCurrentUser, type AuthUser } from '../utils/auth';
 import { getDB } from '../utils/db';
 import { env } from 'cloudflare:workers';
+import { sendSignatureConfirmation } from '../utils/email';
 
 export const prerender = false;
 
@@ -52,7 +53,8 @@ if (Astro.request.method === 'POST') {
         db.prepare('INSERT INTO signatures (id, campaign_id, name, email, zip, display_publicly) VALUES (?, ?, ?, ?, ?, 1)')
           .bind(sid, campaign?.id, name, email, zip || null).run();
         justSigned = true;
-        totalSignatures && (await (() => totalSignatures)) as any;
+        // Send confirmation email (fire and forget)
+        sendSignatureConfirmation(env, email, name, campaign.title, campaign.slug).catch(() => {});
       }
     }
   } catch (e: any) {
