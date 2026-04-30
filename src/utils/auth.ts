@@ -18,46 +18,53 @@ export async function getCurrentUser(locals: App.Locals, env?: any): Promise<Aut
   try {
     const l = locals as any;
 
-    // @clerk/astro provides locals.auth()
-    if (typeof l?.auth === 'function') {
-      const authResult = await l.auth();
-      const userId = authResult?.userId;
-      if (userId && env) {
-        const db = getDB(env);
-        let result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
-        let user = result?.results?.[0] as any;
+    if (typeof l?.auth !== 'function') return null;
 
-        // Auto-sync: if user exists in Clerk but not in D1, create them
-        if (!user) {
-          const clerkUser = authResult.user || (l.currentUser ? await l.currentUser() : null);
-          const email = clerkUser?.emailAddresses?.[0]?.emailAddress || authResult.sessionClaims?.email || `user-${userId}@unknown`;
-          const name = clerkUser?.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : (authResult.sessionClaims?.name || 'User');
-          const imageUrl = clerkUser?.imageUrl || '';
+    const authData = await l.auth();
+    const userId = authData?.userId;
+    if (!userId) return null;
 
-          const id = crypto.randomUUID();
-          db.prepare(
-            'INSERT INTO users (id, auth_provider_id, email, display_name, avatar_url, role) VALUES (?, ?, ?, ?, ?, ?)'
-          ).bind(id, userId, email, name, imageUrl, 'user').run();
+    const db = getDB(env);
 
-          result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
-          user = result?.results?.[0] as any;
-        }
+    // Try to find existing user in D1
+    let result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
+    let user = result?.results?.[0] as any;
 
-        if (user) {
-          return {
-            id: user.id,
-            email: user.email,
-            displayName: user.display_name ?? 'User',
-            avatarUrl: user.avatar_url ?? '',
-            role: user.role as AuthUser['role'],
-            location_city: user.location_city,
-            location_state: user.location_state,
-          };
-        }
-      }
+    // Auto-create if first sign-in
+    if (!user) {
+      // Get user details from Clerk session claims (most reliable in Worker)
+      const sessionClaims = authData?.sessionClaims || {};
+      const email = sessionClaims?.email || `${userId}@clerk.user`;
+      const name = sessionClaims?.name || sessionClaims?.firstName || 'User';
+
+      const id = crypto.randomUUID();
+      db.prepare(
+        'INSERT INTO users (id, auth_provider_id, email, display_name, avatar_url, role) VALUES (?, ?, ?, ?, ?, ?)'
+      ).bind(id, userId, email, name, '', 'user').run();
+
+      user = {
+        id,
+        auth_provider_id: userId,
+        email,
+        display_name: name,
+        avatar_url: '',
+        role: 'user',
+        location_city: null,
+        location_state: null,
+      };
     }
+
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.display_name ?? 'User',
+      avatarUrl: user.avatar_url ?? '',
+      role: user.role as AuthUser['role'],
+      location_city: user.location_city,
+      location_state: user.location_state,
+    };
   } catch (e) {
-    console.error('getCurrentUser error:', e);
+    // Silent — user just isn't logged in
   }
 
   return null;
