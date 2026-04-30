@@ -5,4 +5,4 @@ compatibility_date = "2026-04-30"
 [[d1_databases]]
 binding = "DB"
 database_name = "qtm-db"
-database_id = "qtm-db-prod"
+database_id = "0715ecc3-0eb0-4dbc-9b82-62c3d8290cc7"
