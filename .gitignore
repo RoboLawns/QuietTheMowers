@@ -20,6 +20,9 @@ pnpm-debug.log*
 # macOS-specific files
 .DS_Store
 
+# generated wrangler config
+wrangler.json
+
 # database
 .data/
 .wrangler/
