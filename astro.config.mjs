@@ -6,7 +6,7 @@ import clerk from '@clerk/astro';
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'static',
+  output: 'server',
   site: 'https://quietthemowers.com',
   vite: {
     plugins: [tailwindcss()]
