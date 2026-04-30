@@ -19,7 +19,7 @@ if (user) {
         <p class="text-earth-500">Create an account to start campaigns, sign petitions, and track your impact.</p>
       </div>
       <div class="bg-white border border-earth-200 rounded-2xl p-8">
-        <div id="clerk-component"></div>
+        <a href="/sign-in" class="btn-primary w-full">Sign In Instead</a>
       </div>
       <p class="text-center text-sm text-earth-400 mt-6">
         Already have an account? <a href="/sign-in" class="text-brand-600 hover:text-brand-800 font-medium">Sign in</a>
@@ -27,25 +27,3 @@ if (user) {
     </div>
   </section>
 </Layout>
-
-<script>
-  const pubKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
-  if (pubKey && !pubKey.includes('placeholder')) {
-    const script = document.createElement('script');
-    script.src = 'https://js.clerk.com/headless/headless.js';
-    script.async = true;
-    script.crossOrigin = 'anonymous';
-    script.setAttribute('data-clerk-publishable-key', pubKey);
-    document.head.appendChild(script);
-    script.onload = () => {
-      if (window.Clerk) {
-        window.Clerk.load().then(() => {
-          window.Clerk.mountSignUp(document.getElementById('clerk-component')!, {
-            signInUrl: '/sign-in',
-            afterSignUpUrl: '/dashboard',
-          });
-        });
-      }
-    };
-  }
-</script>
