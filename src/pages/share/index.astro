@@ -4,7 +4,7 @@ import { getCurrentUser, type AuthUser } from '../../utils/auth';
 
 export const prerender = false;
 
-const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
+const user = await getCurrentUser(Astro.locals) as AuthUser | null;
 
 const assets = [
   {
