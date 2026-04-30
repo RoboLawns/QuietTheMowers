@@ -6,11 +6,41 @@ import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
+// Manual Clerk auth: read session cookie and extract user
+let clerkUserId: string | null = null;
+let clerkEmail: string | null = null;
+try {
+  const cookieHeader = Astro.request.headers.get('cookie') || '';
+  const sessionMatch = cookieHeader.match(/__session=([^;]+)/);
+  if (sessionMatch) {
+    const jwt = sessionMatch[1];
+    const parts = jwt.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      clerkUserId = payload.sub || null;
+      clerkEmail = payload.email || null;
+    }
+  }
+} catch {}
+
 const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
+
+// Auto-sync if Clerk session exists but no DB user
+if (clerkUserId && !user) {
+  const db = getDB(env);
+  const id = crypto.randomUUID();
+  db.prepare(
+    'INSERT OR IGNORE INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)'
+  ).bind(id, clerkUserId, clerkEmail || `${clerkUserId}@clerk.user`, clerkEmail?.split('@')[0] || 'User', 'user').run();
+}
 
 const db = getDB(env);
 
-// Stats (always compute — works with or without user)
+// Re-fetch user after sync
+const freshUser = clerkUserId ? (await getCurrentUser(Astro.locals, env)) : user;
+const needsSignIn = !freshUser && !clerkUserId;
+
+// Stats
 let campaignsList: any[] = [];
 let signaturesList: any[] = [];
 let localList: any[] = [];
@@ -22,14 +52,14 @@ let hasStartedCampaign = false;
 let hasUploadedMeasurement = false;
 let hasWrittenTestimonial = false;
 
-if (user) {
+if (freshUser) {
   const myCampaigns = db.prepare(`
     SELECT c.*,
       (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
     FROM campaigns c
     WHERE c.organizer_id = ?
     ORDER BY c.created_at DESC
-  `).bind(user.id).all();
+  `).bind(freshUser.id).all();
   campaignsList = (myCampaigns.results || []) as any[];
 
   const mySignatures = db.prepare(`
@@ -38,24 +68,24 @@ if (user) {
     LEFT JOIN campaigns c ON s.campaign_id = c.id
     WHERE s.email = ?
     ORDER BY s.created_at DESC
-  `).bind(user.email).all();
+  `).bind(freshUser.email).all();
   signaturesList = (mySignatures.results || []) as any[];
 
-  myMeasurements = db.prepare('SELECT COUNT(*) as count FROM measurements WHERE user_id = ?').bind(user.id).first() as any;
-  myTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials WHERE user_id = ?').bind(user.id).first() as any;
+  myMeasurements = db.prepare('SELECT COUNT(*) as count FROM measurements WHERE user_id = ?').bind(freshUser.id).first() as any;
+  myTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials WHERE user_id = ?').bind(freshUser.id).first() as any;
 
   totalSigsGathered = db.prepare(`
     SELECT COUNT(*) as count FROM signatures s
     JOIN campaigns c ON s.campaign_id = c.id
     WHERE c.organizer_id = ?
-  `).bind(user.id).first() as any;
+  `).bind(freshUser.id).first() as any;
 
   hasSignedNational = signaturesList.some(s => s.campaign_slug === 'national-quiet-neighborhoods-petition');
   hasStartedCampaign = campaignsList.length > 0;
   hasUploadedMeasurement = (myMeasurements?.count || 0) > 0;
   hasWrittenTestimonial = (myTestimonials?.count || 0) > 0;
 
-  if (user.location_state) {
+  if (freshUser.location_state) {
     const localCampaigns = db.prepare(`
       SELECT c.*, u.display_name as organizer_name,
         (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
@@ -64,7 +94,7 @@ if (user) {
       WHERE c.location_state = ? AND c.status = 'active' AND c.organizer_id != ?
       ORDER BY c.created_at DESC
       LIMIT 4
-    `).bind(user.location_state, user.id).all();
+    `).bind(freshUser.location_state, freshUser.id).all();
     localList = (localCampaigns.results || []) as any[];
   }
 }
@@ -86,7 +116,8 @@ const needsSignIn = !user;
         <a href="/sign-in" class="btn-accent text-lg px-8 py-4">Sign In to Get Started</a>
         <p class="text-xs text-earth-400 mt-4">Don't have an account? <a href="/sign-up" class="text-brand-600 font-medium">Create one</a></p>
       </div>
-    ) : (
+    ) : null}
+    {freshUser && (
       <>
     <!-- Welcome banner -->
     {justOnboarded ? (
@@ -275,6 +306,11 @@ const needsSignIn = !user;
     </div>
     </>
     )}
+    {!freshUser && !needsSignIn ? (
+      <div class="text-center py-12">
+        <p class="text-earth-400">Loading your dashboard...</p>
+      </div>
+    ) : null}
   </div>
 </section>
 
