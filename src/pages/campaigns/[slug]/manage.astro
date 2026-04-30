@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import { getCurrentUser, type AuthUser } from '../../../utils/auth';
+import { getAuthFromRequest, type AuthUser } from '../../../utils/auth';
 import { getDB } from '../../../utils/db';
 
 export const prerender = false;

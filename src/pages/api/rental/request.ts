@@ -1,15 +1,12 @@
 import type { APIRoute } from 'astro';
-import { getCurrentUser } from '../../../utils/auth';
+import { getAuthFromRequest } from '../../../utils/auth';
 import { getDB } from '../../../utils/db';
-import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, locals, redirect }) => {
-  const user = await getCurrentUser(locals, env);
-  if (!user) {
-    return new Response(null, { status: 302, headers: { Location: '/sign-in?redirect=/measure/rent' } });
-  }
+export const POST: APIRoute = async ({ request, redirect }) => {
+  const user = getAuthFromRequest(request);
+  if (!user) return redirect('/sign-in');
 
   try {
     const formData = await request.formData();

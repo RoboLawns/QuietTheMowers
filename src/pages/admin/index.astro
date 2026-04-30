@@ -1,12 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getCurrentUser, type AuthUser } from '../../utils/auth';
+import { getAuthFromRequest, type AuthUser } from '../../utils/auth';
 import { getDB } from '../../utils/db';
 import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
+const user = getAuthFromRequest(Astro.request, env);
 
 if (!user || user.role !== 'admin') {
   return new Response(null, { status: 302, headers: { Location: '/' } });

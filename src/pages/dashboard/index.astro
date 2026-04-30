@@ -1,50 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { getAuthFromRequest, type AuthUser } from '../../utils/auth';
 import { getDB } from '../../utils/db';
 import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-// Extract Clerk user from cookie
-let clerkUserId: string | null = null;
-let clerkEmail: string | null = null;
-let clerkName: string | null = null;
-
-try {
-  const cookieHeader = Astro.request.headers.get('cookie') || '';
-  const match = cookieHeader.match(/__session=([^;]+)/);
-  if (match?.[1]) {
-    const parts = match[1].split('.');
-    if (parts.length >= 2) {
-      // atob is available in Workers since 2023
-      const raw = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const text = decodeURIComponent(Array.prototype.map.call(
-        atob(raw), (c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-      ).join(''));
-      const payload = JSON.parse(text);
-      clerkUserId = payload.sub || null;
-      clerkEmail = payload.email || null;
-      clerkName = payload.name || payload.email?.split('@')[0] || 'User';
-    }
-  }
-} catch {}
-
-// Sync to DB and load user
-let user: any = null;
-if (clerkUserId) {
-  const db = getDB(env);
-  try {
-    let row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
-    if (!row) {
-      db.prepare('INSERT INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)')
-        .bind(crypto.randomUUID(), clerkUserId, clerkEmail || 'unknown@user', clerkName || 'User', 'user').run();
-      row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
-    }
-    if (row) user = row;
-  } catch { /* DB not available */ }
-}
-
-// Stats
+const user = getAuthFromRequest(Astro.request, env);
 const db = getDB(env);
 let campaigns: any[] = [];
 let sigCount = 0;
@@ -75,7 +37,7 @@ if (user) {
       <>
         <div class="flex items-center justify-between mb-10">
           <div>
-            <h1 class="text-4xl font-display font-bold text-brand-900">Hi, {user.display_name || clerkName || 'Friend'}</h1>
+            <h1 class="text-4xl font-display font-bold text-brand-900">Hi, {user.displayName || 'Friend'}</h1>
             {user.location_city && <p class="text-earth-500 mt-1">{user.location_city}, {user.location_state}</p>}
           </div>
           <div class="hidden sm:flex gap-3">

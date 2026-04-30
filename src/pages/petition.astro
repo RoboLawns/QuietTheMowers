@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getCurrentUser, type AuthUser } from '../utils/auth';
+import { getAuthFromRequest, type AuthUser } from '../utils/auth';
 import { getDB } from '../utils/db';
 import { env } from 'cloudflare:workers';
 import { sendSignatureConfirmation } from '../utils/email';
@@ -9,7 +9,7 @@ import { sendVerificationEmail, generateToken } from '../utils/verification';
 export const prerender = false;
 
 const db = getDB(env);
-const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
+const user = getAuthFromRequest(Astro.request, env) as AuthUser | null;
 
 // Check if national petition exists, create if not
 let campaign = db.prepare("SELECT * FROM campaigns WHERE slug = 'national-quiet-neighborhoods-petition'").first() as any;
