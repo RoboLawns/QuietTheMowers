@@ -1,397 +1,163 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getCurrentUser, type AuthUser } from '../../utils/auth';
 import { getDB } from '../../utils/db';
 import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-// Manual Clerk auth: read session cookie and extract user
+// Extract Clerk user from cookie
 let clerkUserId: string | null = null;
 let clerkEmail: string | null = null;
+let clerkName: string | null = null;
+
 try {
   const cookieHeader = Astro.request.headers.get('cookie') || '';
-  const sessionMatch = cookieHeader.match(/__session=([^;]+)/);
-  if (sessionMatch) {
-    const jwt = sessionMatch[1];
-    const parts = jwt.split('.');
-    if (parts.length === 3) {
-      // Base64 decode without atob (not available in Workers)
-      const base64Decode = (str: string) => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-        str = str.replace(/-/g, '+').replace(/_/g, '/');
-        let output = '';
-        for (let i = 0; i < str.length; i += 4) {
-          const a = chars.indexOf(str[i] || '=');
-          const b = chars.indexOf(str[i + 1] || '=');
-          const c = chars.indexOf(str[i + 2] || '=');
-          const d = chars.indexOf(str[i + 3] || '=');
-          output += String.fromCharCode(((a << 2) | (b >> 4)) & 255);
-          if (c !== 64) output += String.fromCharCode(((b << 4) | (c >> 2)) & 255);
-          if (d !== 64) output += String.fromCharCode(((c << 6) | d) & 255);
-        }
-        return output;
-      };
-      const payload = JSON.parse(base64Decode(parts[1]));
+  const match = cookieHeader.match(/__session=([^;]+)/);
+  if (match?.[1]) {
+    const parts = match[1].split('.');
+    if (parts.length >= 2) {
+      // atob is available in Workers since 2023
+      const raw = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const text = decodeURIComponent(Array.prototype.map.call(
+        atob(raw), (c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join(''));
+      const payload = JSON.parse(text);
       clerkUserId = payload.sub || null;
       clerkEmail = payload.email || null;
+      clerkName = payload.name || payload.email?.split('@')[0] || 'User';
     }
   }
 } catch {}
 
-const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
-
-// Auto-sync if Clerk session exists but no DB user
-if (clerkUserId && !user) {
-  const db = getDB(env);
-
-// Try to get user via Cookie JWT directly (bypasses locals.auth which doesn't work in Workers)
-let freshUser: AuthUser | null = null;
-
+// Sync to DB and load user
+let user: any = null;
 if (clerkUserId) {
-  // Check direct DB lookup by auth_provider_id
-  let result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
-
-  // Auto-create if not found
-  if (!result) {
-    const id = crypto.randomUUID();
-    db.prepare(
-      'INSERT OR IGNORE INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)'
-    ).bind(id, clerkUserId, clerkEmail || `${clerkUserId}@clerk.user`, clerkEmail?.split('@')[0] || 'User', 'user').run();
-    result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
-  }
-
-  if (result) {
-    freshUser = {
-      id: result.id,
-      email: result.email,
-      displayName: result.display_name || clerkEmail?.split('@')[0] || 'User',
-      avatarUrl: result.avatar_url || '',
-      role: result.role || 'user',
-      location_city: result.location_city,
-      location_state: result.location_state,
-    };
-  }
+  const db = getDB(env);
+  try {
+    let row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
+    if (!row) {
+      db.prepare('INSERT INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), clerkUserId, clerkEmail || 'unknown@user', clerkName || 'User', 'user').run();
+      row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
+    }
+    if (row) user = row;
+  } catch { /* DB not available */ }
 }
-
-// Fallback: try getCurrentUser if Clerk middleware is available
-if (!freshUser) {
-  freshUser = await getCurrentUser(Astro.locals, env) as AuthUser | null;
-}
-
-const needsSignIn = !freshUser && !clerkUserId;
-
-// Cookie-only auth (no DB user sync'd)
-const sessionUser = clerkUserId && !freshUser ? { 
-  id: clerkUserId, 
-  email: clerkEmail || `${clerkUserId}@clerk.user`,
-  displayName: clerkEmail?.split('@')[0] || 'User' 
-} : null;
-  const id = crypto.randomUUID();
-  db.prepare(
-    'INSERT OR IGNORE INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)'
-  ).bind(id, clerkUserId, clerkEmail || `${clerkUserId}@clerk.user`, clerkEmail?.split('@')[0] || 'User', 'user').run();
-  
-  // Direct DB lookup by auth_provider_id (bypasses getCurrentUser which needs locals.auth)
-  const result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkUserId).first() as any;
-  if (result) {
-    freshUser = freshUser || {
-      id: result.id,
-      email: result.email,
-      displayName: result.display_name || clerkEmail?.split('@')[0] || 'User',
-      avatarUrl: result.avatar_url || '',
-      role: result.role || 'user',
-      location_city: result.location_city,
-      location_state: result.location_state,
-    };
-  }
-}
-
-// If still no DB user but Clerk session exists, use session data
-const sessionUser = clerkUserId && !freshUser ? { 
-  id: clerkUserId, 
-  email: clerkEmail || `${clerkUserId}@clerk.user`,
-  displayName: clerkEmail?.split('@')[0] || 'User' 
-} : null;
 
 // Stats
-let campaignsList: any[] = [];
-let signaturesList: any[] = [];
-let localList: any[] = [];
-let totalSigsGathered = { count: 0 };
-let myMeasurements = { count: 0 };
-let myTestimonials = { count: 0 };
-let hasSignedNational = false;
-let hasStartedCampaign = false;
-let hasUploadedMeasurement = false;
-let hasWrittenTestimonial = false;
+const db = getDB(env);
+let campaigns: any[] = [];
+let sigCount = 0;
+let petSigned = 0;
+let localCampaigns: any[] = [];
 
-if (freshUser) {
-  const myCampaigns = db.prepare(`
-    SELECT c.*,
-      (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
-    FROM campaigns c
-    WHERE c.organizer_id = ?
-    ORDER BY c.created_at DESC
-  `).bind(freshUser.id).all();
-  campaignsList = (myCampaigns.results || []) as any[];
-
-  const mySignatures = db.prepare(`
-    SELECT s.*, c.title as campaign_title, c.slug as campaign_slug, c.status as campaign_status
-    FROM signatures s
-    LEFT JOIN campaigns c ON s.campaign_id = c.id
-    WHERE s.email = ?
-    ORDER BY s.created_at DESC
-  `).bind(freshUser.email).all();
-  signaturesList = (mySignatures.results || []) as any[];
-
-  myMeasurements = db.prepare('SELECT COUNT(*) as count FROM measurements WHERE user_id = ?').bind(freshUser.id).first() as any;
-  myTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials WHERE user_id = ?').bind(freshUser.id).first() as any;
-
-  totalSigsGathered = db.prepare(`
-    SELECT COUNT(*) as count FROM signatures s
-    JOIN campaigns c ON s.campaign_id = c.id
-    WHERE c.organizer_id = ?
-  `).bind(freshUser.id).first() as any;
-
-  hasSignedNational = signaturesList.some(s => s.campaign_slug === 'national-quiet-neighborhoods-petition');
-  hasStartedCampaign = campaignsList.length > 0;
-  hasUploadedMeasurement = (myMeasurements?.count || 0) > 0;
-  hasWrittenTestimonial = (myTestimonials?.count || 0) > 0;
-
-  if (freshUser.location_state) {
-    const localCampaigns = db.prepare(`
-      SELECT c.*, u.display_name as organizer_name,
-        (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
-      FROM campaigns c
-      LEFT JOIN users u ON c.organizer_id = u.id
-      WHERE c.location_state = ? AND c.status = 'active' AND c.organizer_id != ?
-      ORDER BY c.created_at DESC
-      LIMIT 4
-    `).bind(freshUser.location_state, freshUser.id).all();
-    localList = (localCampaigns.results || []) as any[];
-  }
+if (user) {
+  try {
+    const mc = db.prepare("SELECT c.*, (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as sigs FROM campaigns c WHERE c.organizer_id = ? ORDER BY c.created_at DESC").bind(user.id).all();
+    campaigns = (mc.results || []) as any[];
+    const s = db.prepare("SELECT COUNT(*) as c FROM signatures WHERE email = ?").bind(user.email).first() as any;
+    petSigned = s?.c || 0;
+    const g = db.prepare("SELECT COUNT(*) as c FROM signatures s JOIN campaigns c ON s.campaign_id = c.id WHERE c.organizer_id = ?").bind(user.id).first() as any;
+    sigCount = g?.c || 0;
+    if (user.location_state) {
+      const l = db.prepare("SELECT c.*, u.display_name as oname, (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as sigs FROM campaigns c LEFT JOIN users u ON c.organizer_id = u.id WHERE c.location_state = ? AND c.status = 'active' AND c.organizer_id != ? ORDER BY c.created_at DESC LIMIT 4").bind(user.location_state, user.id).all();
+      localCampaigns = (l.results || []) as any[];
+    }
+  } catch {}
 }
-
-const justOnboarded = Astro.url.searchParams.get('onboarded') === '1';
 ---
 
-<Layout title="Dashboard" description="Your dashboard">
-
+<Layout title="Dashboard">
 <section class="section">
   <div class="container-narrow">
 
-    {needsSignIn ? (
-      <div class="bg-accent-50 border-2 border-accent-200 rounded-2xl p-8 mb-12 text-center">
-        <div class="text-3xl mb-3">🌱</div>
-        <h1 class="text-2xl font-display font-bold text-brand-900 mb-2">Welcome to Quiet The Mowers</h1>
-        <p class="text-earth-500 mb-6 max-w-md mx-auto">Sign in to track your campaigns, see your signatures, and get personalized action prompts.</p>
-        <a href="/sign-in" class="btn-accent text-lg px-8 py-4">Sign In to Get Started</a>
-        <p class="text-xs text-earth-400 mt-4">Don't have an account? <a href="/sign-up" class="text-brand-600 font-medium">Create one</a></p>
-      </div>
-    ) : null}
-    {freshUser && (
+    {user ? (
       <>
-    <!-- Welcome banner -->
-    {justOnboarded ? (
-      <div class="bg-brand-50 border border-brand-200 rounded-2xl p-5 mb-8 flex items-center gap-4">
-        <div class="text-2xl">👋</div>
-        <div>
-          <p class="font-semibold text-brand-900">Welcome to Quiet The Mowers!</p>
-          <p class="text-sm text-earth-500">Your account is set up. Pick an action below to get started.</p>
+        <div class="flex items-center justify-between mb-10">
+          <div>
+            <h1 class="text-4xl font-display font-bold text-brand-900">Hi, {user.display_name || clerkName || 'Friend'}</h1>
+            {user.location_city && <p class="text-earth-500 mt-1">{user.location_city}, {user.location_state}</p>}
+          </div>
+          <div class="hidden sm:flex gap-3">
+            <a href="/account" class="text-sm text-earth-500 hover:text-brand-700">Edit Profile</a>
+            <a href="/sign-in" class="text-sm text-earth-500 hover:text-brand-700">Sign Out</a>
+          </div>
         </div>
-      </div>
-    ) : null}
 
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-10">
-      <div>
-        <h1 class="text-4xl font-display font-bold text-brand-900">Hi, {user.displayName?.split(' ')[0] || 'Friend'}</h1>
-        <p class="text-earth-500 mt-1">{user.location_city}, {user.location_state}</p>
-      </div>
-      <div class="hidden sm:flex gap-3">
-        <a href="/account" class="text-sm text-earth-500 hover:text-brand-700">Profile</a>
-        <a href="/api/auth/sign-out" class="text-sm text-earth-500 hover:text-brand-700">Sign Out</a>
-      </div>
-    </div>
-
-    <!-- Stats -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
-      <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-display font-bold text-brand-600">{campaignsList.length}</div>
-        <div class="text-xs text-earth-500 mt-1">Campaigns Started</div>
-      </div>
-      <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-display font-bold text-brand-600">{totalSigsGathered?.count || 0}</div>
-        <div class="text-xs text-earth-500 mt-1">Signatures Gathered</div>
-      </div>
-      <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-display font-bold text-brand-600">{signaturesList.length}</div>
-        <div class="text-xs text-earth-500 mt-1">Petitions Signed</div>
-      </div>
-      <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-display font-bold text-brand-600">{myMeasurements?.count || 0}</div>
-        <div class="text-xs text-earth-500 mt-1">Measurements</div>
-      </div>
-    </div>
-
-    <!-- Suggested Next Actions -->
-    <div class="bg-white border-2 border-accent-200 rounded-2xl p-6 mb-10">
-      <h2 class="text-xl font-display font-bold text-brand-900 mb-4">Your Next Actions</h2>
-      <div class="space-y-3">
-        {!hasSignedNational && (
-          <a href="/petition" class="flex items-center justify-between p-3 rounded-lg bg-accent-50 hover:bg-accent-100 transition-colors">
-            <div>
-              <div class="font-semibold text-accent-900 text-sm">Sign the National Petition</div>
-              <p class="text-xs text-earth-500">Show baseline support for the movement (1 minute)</p>
-            </div>
-            <span class="text-accent-700 font-bold">→</span>
-          </a>
-        )}
-        {!hasStartedCampaign && (
-          <a href="/campaigns/new" class="flex items-center justify-between p-3 rounded-lg bg-brand-50 hover:bg-brand-100 transition-colors">
-            <div>
-              <div class="font-semibold text-brand-900 text-sm">Start a Local Campaign</div>
-              <p class="text-xs text-earth-500">Target your HOA, city, or county (15 minutes)</p>
-            </div>
-            <span class="text-brand-700 font-bold">→</span>
-          </a>
-        )}
-        {!hasUploadedMeasurement && (
-          <a href="/measure/upload" class="flex items-center justify-between p-3 rounded-lg bg-earth-50 hover:bg-earth-100 transition-colors">
-            <div>
-              <div class="font-semibold text-earth-900 text-sm">Upload Your First Measurement</div>
-              <p class="text-xs text-earth-500">Document the noise in your neighborhood</p>
-            </div>
-            <span class="text-earth-700 font-bold">→</span>
-          </a>
-        )}
-        {!hasWrittenTestimonial && (
-          <a href="/wall/submit" class="flex items-center justify-between p-3 rounded-lg bg-earth-50 hover:bg-earth-100 transition-colors">
-            <div>
-              <div class="font-semibold text-earth-900 text-sm">Share Your Story</div>
-              <p class="text-xs text-earth-500">Tell us about your first quiet morning</p>
-            </div>
-            <span class="text-earth-700 font-bold">→</span>
-          </a>
-        )}
-        {hasSignedNational && hasStartedCampaign && hasUploadedMeasurement && hasWrittenTestimonial && (
-          <p class="text-sm text-earth-500 text-center py-4">You've done it all! Keep your campaigns going and watch the signatures grow.</p>
-        )}
-      </div>
-    </div>
-
-    <!-- My Campaigns -->
-    <div class="mb-10">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-display font-bold text-brand-900">My Campaigns</h2>
-        <a href="/campaigns/new" class="text-sm text-brand-600 font-semibold hover:text-brand-800">+ Start New</a>
-      </div>
-      {campaignsList.length > 0 ? (
-        <div class="space-y-3">
-          {campaignsList.map((c: any) => {
-            const progress = Math.min(100, Math.round(((c.signature_count || 0) / (c.goal_signatures || 1)) * 100));
-            return (
-              <a href={`/campaigns/${c.slug}/manage`} class="block bg-white border border-earth-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
-                <div class="flex items-start justify-between mb-2">
-                  <h3 class="font-semibold text-brand-900">{c.title}</h3>
-                  <span class={`text-xs font-medium px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-100 text-green-700' : c.status === 'won' ? 'bg-accent-100 text-accent-700' : 'bg-earth-100 text-earth-600'}`}>{c.status}</span>
-                </div>
-                <p class="text-xs text-earth-500 mb-3">{c.target_name || c.location_city}</p>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm text-earth-600">{c.signature_count || 0} of {c.goal_signatures} signatures</span>
-                  <span class="text-brand-600 text-sm font-medium">Manage →</span>
-                </div>
-                <div class="w-full bg-earth-200 rounded-full h-1.5">
-                  <div class="bg-brand-500 h-1.5 rounded-full" style={`width: ${progress}%`}></div>
-                </div>
-              </a>
-            );
-          })}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+          <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-brand-600">{campaigns.length}</div>
+            <div class="text-xs text-earth-500 mt-1">Campaigns</div>
+          </div>
+          <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-brand-600">{sigCount}</div>
+            <div class="text-xs text-earth-500 mt-1">Sigs Gathered</div>
+          </div>
+          <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-brand-600">{petSigned}</div>
+            <div class="text-xs text-earth-500 mt-1">Petitions Signed</div>
+          </div>
+          <div class="bg-white border border-earth-200 rounded-xl p-4 text-center">
+            <a href="/campaigns/new" class="btn-accent text-xs px-4 py-2 w-full block text-center">Start New</a>
+          </div>
         </div>
-      ) : (
-        <div class="bg-earth-50 rounded-xl p-8 text-center">
-          <p class="text-earth-500 mb-3">You haven't started a campaign yet.</p>
-          <a href="/campaigns/new" class="btn-primary text-sm">Start Your First Campaign</a>
-        </div>
-      )}
-    </div>
 
-    <!-- Local Campaigns to Support -->
-    {localList.length > 0 && (
-      <div class="mb-10">
-        <h2 class="text-xl font-display font-bold text-brand-900 mb-4">
-          Active Campaigns in {user.location_state}
-        </h2>
-        <div class="grid sm:grid-cols-2 gap-3">
-          {localList.map((c: any) => {
-            const progress = Math.min(100, Math.round(((c.signature_count || 0) / (c.goal_signatures || 1)) * 100));
-            return (
-              <a href={`/campaigns/${c.slug}`} class="block bg-white border border-earth-200 rounded-xl p-4 hover:border-brand-300 transition-all">
-                <h3 class="font-semibold text-brand-900 text-sm mb-1">{c.title}</h3>
-                <p class="text-xs text-earth-500 mb-3">{c.location_city} · by {c.organizer_name || 'Organizer'}</p>
-                <div class="text-xs text-earth-600 mb-2">{c.signature_count || 0} of {c.goal_signatures}</div>
-                <div class="w-full bg-earth-200 rounded-full h-1">
-                  <div class="bg-brand-500 h-1 rounded-full" style={`width: ${progress}%`}></div>
-                </div>
-              </a>
-            );
-          })}
+        <div class="bg-white border-2 border-accent-200 rounded-2xl p-6 mb-10">
+          <h2 class="text-xl font-bold text-brand-900 mb-4">Your Next Action</h2>
+          <div class="space-y-3">
+            {!petSigned ? <a href="/petition" class="flex items-center justify-between p-3 rounded-lg bg-accent-50 hover:bg-accent-100"><div><div class="font-semibold text-accent-900 text-sm">Sign the National Petition</div><p class="text-xs text-earth-500">Show support for the movement (1 minute)</p></div><span class="text-accent-700 font-bold">&rarr;</span></a> : null}
+            {campaigns.length === 0 && <a href="/campaigns/new" class="flex items-center justify-between p-3 rounded-lg bg-brand-50 hover:bg-brand-100"><div><div class="font-semibold text-brand-900 text-sm">Start a Local Campaign</div><p class="text-xs text-earth-500">Target your HOA, city, or county (15 min)</p></div><span class="text-brand-700 font-bold">&rarr;</span></a>}
+            <a href="/measure/upload" class="flex items-center justify-between p-3 rounded-lg bg-earth-50 hover:bg-earth-100"><div><div class="font-semibold text-earth-900 text-sm">Upload Noise Measurements</div><p class="text-xs text-earth-500">Document the problem with data</p></div><span class="text-earth-700 font-bold">&rarr;</span></a>
+            <a href="/wall/submit" class="flex items-center justify-between p-3 rounded-lg bg-earth-50 hover:bg-earth-100"><div><div class="font-semibold text-earth-900 text-sm">Share Your Story</div><p class="text-xs text-earth-500">Tell the world about your quiet morning</p></div><span class="text-earth-700 font-bold">&rarr;</span></a>
+          </div>
+        </div>
+
+        {campaigns.length > 0 && (
+          <div class="mb-10">
+            <h2 class="text-xl font-bold text-brand-900 mb-4">My Campaigns</h2>
+            <div class="space-y-3">
+              {campaigns.map((c: any) => {
+                const pct = Math.min(100, Math.round(((c.sigs || 0) / (c.goal_signatures || 1)) * 100));
+                return (<a href={`/campaigns/${c.slug}/manage`} class="block bg-white border border-earth-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm">
+                  <div class="flex items-start justify-between mb-2"><h3 class="font-semibold text-brand-900">{c.title}</h3><span class={`text-xs px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-100 text-green-700' : c.status === 'won' ? 'bg-accent-100 text-accent-700' : 'bg-earth-100 text-earth-600'}`}>{c.status}</span></div>
+                  <p class="text-xs text-earth-500 mb-3">{c.target_name || c.location_city}</p>
+                  <div class="flex items-center justify-between mb-2"><span class="text-sm text-earth-600">{c.sigs || 0} of {c.goal_signatures} signatures</span><span class="text-brand-600 text-sm font-medium">Manage &rarr;</span></div>
+                  <div class="w-full bg-earth-200 rounded-full h-1.5"><div class="bg-brand-500 h-1.5 rounded-full" style={`width: ${pct}%`}></div></div>
+                </a>);
+              })}
+            </div>
+          </div>
+        )}
+
+        {localCampaigns.length > 0 && (
+          <div class="mb-10">
+            <h2 class="text-xl font-bold text-brand-900 mb-4">Campaigns in {user.location_state}</h2>
+            <div class="grid sm:grid-cols-2 gap-3">
+              {localCampaigns.map((c: any) => {
+                const pct = Math.min(100, Math.round(((c.sigs || 0) / (c.goal_signatures || 1)) * 100));
+                return (<a href={`/campaigns/${c.slug}`} class="block bg-white border border-earth-200 rounded-xl p-4 hover:border-brand-300">
+                  <h3 class="font-semibold text-brand-900 text-sm mb-1">{c.title}</h3>
+                  <p class="text-xs text-earth-500 mb-2">{c.location_city} &middot; by {c.oname || 'Organizer'}</p>
+                  <div class="text-xs text-earth-600 mb-2">{c.sigs || 0} of {c.goal_signatures}</div>
+                  <div class="w-full bg-earth-200 rounded-full h-1"><div class="bg-brand-500 h-1 rounded-full" style={`width: ${pct}%`}></div></div>
+                </a>);
+              })}
+            </div>
+          </div>
+        )}
+      </>
+    ) : (
+      <div class="bg-accent-50 border-2 border-accent-200 rounded-2xl p-12 text-center max-w-lg mx-auto">
+        <div class="text-4xl mb-4">🌱</div>
+        <h1 class="text-2xl font-display font-bold text-brand-900 mb-3">Welcome to Quiet The Mowers</h1>
+        <p class="text-earth-500 mb-8">Sign in to start campaigns, sign petitions, and track your impact on your neighborhood.</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a href="/sign-in" class="btn-accent text-lg px-8 py-4">Sign In</a>
+          <a href="/sign-up" class="btn-secondary text-lg px-8 py-4">Create Account</a>
         </div>
       </div>
     )}
 
-    <!-- Petitions I've Signed -->
-    {signaturesList.length > 0 && (
-      <div class="mb-10">
-        <h2 class="text-xl font-display font-bold text-brand-900 mb-4">Petitions I've Signed</h2>
-        <div class="space-y-2">
-          {signaturesList.map((s: any) => (
-            <a href={s.campaign_slug ? `/campaigns/${s.campaign_slug}` : '#'} class="flex items-center justify-between bg-white border border-earth-200 rounded-lg px-4 py-3 hover:border-brand-300 transition-all">
-              <div>
-                <div class="font-medium text-earth-900 text-sm">{s.campaign_title || 'Campaign'}</div>
-                <div class="text-xs text-earth-400">Signed {new Date(s.created_at).toLocaleDateString()}</div>
-              </div>
-              {s.campaign_status === 'won' && <span class="text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full font-medium">Won!</span>}
-            </a>
-          ))}
-        </div>
-      </div>
-    )}
-
-    <!-- Quick Tools -->
-    <div class="bg-white border border-earth-200 rounded-2xl p-6">
-      <h2 class="text-xl font-display font-bold text-brand-900 mb-4">Quick Tools</h2>
-      <div class="grid sm:grid-cols-3 gap-3">
-        <a href="/measure/upload" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
-          <div class="font-semibold text-brand-900 text-sm">📊 Upload Measurements</div>
-          <div class="text-xs text-earth-500 mt-1">Submit noise data</div>
-        </a>
-        <a href="/wall/submit" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
-          <div class="font-semibold text-brand-900 text-sm">📖 Share Your Story</div>
-          <div class="text-xs text-earth-500 mt-1">Add to the wall</div>
-        </a>
-        <a href="/measure/rent" class="block bg-earth-50 rounded-xl p-4 text-center hover:bg-brand-50 transition-colors">
-          <div class="font-semibold text-brand-900 text-sm">🎚️ Rent a Sound Meter</div>
-          <div class="text-xs text-earth-500 mt-1">$15-25 shipping</div>
-        </a>
-      </div>
-    </div>
-    </>
-    )}
-    {!freshUser && !needsSignIn && sessionUser ? (
-      <div class="text-center py-12">
-        <p class="text-2xl font-bold text-brand-900 mb-2">Hi, {sessionUser.displayName}!</p>
-        <p class="text-earth-500 mb-8">Your account is being set up. Check back in a minute.</p>
-        <a href="/petition" class="btn-accent">Sign the National Petition</a>
-      </div>
-    ) : null}
-    {!freshUser && !needsSignIn && !sessionUser ? (
-      <div class="text-center py-12">
-        <p class="text-earth-400">Loading your dashboard...</p>
-      </div>
-    ) : null}
   </div>
 </section>
-
 </Layout>
