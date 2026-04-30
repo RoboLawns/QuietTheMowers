@@ -11,17 +11,19 @@ export interface AuthUser {
   role: 'user' | 'organizer' | 'admin';
 }
 
-// Get the current user from Clerk or mock
+// Get the current user from Clerk
 export async function getCurrentUser(_locals: App.Locals): Promise<AuthUser | null> {
-  // Try Clerk auth first
   try {
     const locals = _locals as any;
+
+    // @clerk/astro provides locals.auth() which returns { userId } or a promise
     if (typeof locals?.auth === 'function') {
-      const { userId } = locals.auth();
+      const authResult = await locals.auth();
+      const userId = authResult?.userId;
       if (userId) {
         const db = getDBFromLocals(_locals);
-        const stmt = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId);
-        const user = stmt.first() as any;
+        const result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
+        const user = result?.results?.[0] as any;
         if (user) {
           return {
             id: user.id,

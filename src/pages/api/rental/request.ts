@@ -7,7 +7,7 @@ export const prerender = false;
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const user = await getCurrentUser(locals);
   if (!user) {
-    return new Response(null, { status: 302, headers: { Location: '/api/auth/sign-in?redirect=/measure/rent' } });
+    return new Response(null, { status: 302, headers: { Location: '/sign-in?redirect=/measure/rent' } });
   }
 
   try {

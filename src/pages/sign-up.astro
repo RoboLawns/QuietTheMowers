@@ -1,0 +1,49 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getCurrentUser } from '../utils/auth';
+
+export const prerender = false;
+
+const user = await getCurrentUser(Astro.locals);
+
+if (user) {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<Layout title="Sign Up" description="Create your Quiet The Mowers account">
+  <section class="section">
+    <div class="max-w-md mx-auto">
+      <div class="text-center mb-10">
+        <h1 class="text-3xl font-display font-bold text-brand-900 mb-3">Join the Movement</h1>
+        <p class="text-earth-500">Create an account to start campaigns, sign petitions, and track your impact.</p>
+      </div>
+
+      <div id="clerk-sign-up" class="bg-white border border-earth-200 rounded-2xl p-8">
+        <p class="text-center text-earth-400">
+          Clerk auth loading...
+        </p>
+      </div>
+
+      <p class="text-center text-sm text-earth-400 mt-6">
+        Already have an account? <a href="/sign-in" class="text-brand-600 hover:text-brand-800 font-medium">Sign in</a>
+      </p>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  import { Clerk } from '@clerk/clerk-js';
+
+  const clerk = new Clerk({import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY});
+  await clerk.load();
+
+  if (clerk.user) {
+    window.location.href = '/dashboard';
+  }
+
+  clerk.mountSignUp(document.getElementById('clerk-sign-up')!, {
+    signInUrl: '/sign-in',
+    afterSignUpUrl: '/dashboard',
+  });
+</script>

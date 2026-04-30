@@ -8,7 +8,7 @@ const user = await getCurrentUser(Astro.locals) as AuthUser | null;
 
 // Redirect to sign-in if not authenticated
 if (!user) {
-  return Astro.redirect('/api/auth/sign-in?redirect=/campaigns/new');
+  return Astro.redirect('/sign-in?redirect=/campaigns/new');
 }
 
 const templateOptions = [

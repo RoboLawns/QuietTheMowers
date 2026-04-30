@@ -65,7 +65,7 @@ const states = db.prepare('SELECT DISTINCT location_state FROM testimonials WHER
           </a>
         ))}
       </div>
-      <a href={user ? '/wall/submit' : '/api/auth/sign-in?redirect=/wall/submit'} class="btn-accent text-sm px-4 py-2">
+      <a href={user ? '/wall/submit' : '/sign-in?redirect=/wall/submit'} class="btn-accent text-sm px-4 py-2">
         Share Your Story
       </a>
     </div>
@@ -104,7 +104,7 @@ const states = db.prepare('SELECT DISTINCT location_state FROM testimonials WHER
       <div class="text-center py-16 bg-earth-50 rounded-2xl">
         <p class="text-xl text-earth-400 mb-4">No stories yet.</p>
         <p class="text-earth-500 mb-8">Be the first to share your quiet morning experience.</p>
-        <a href={user ? '/wall/submit' : '/api/auth/sign-in'} class="btn-primary">
+        <a href={user ? '/wall/submit' : '/sign-in'} class="btn-primary">
           Share Your Story
         </a>
       </div>

@@ -85,7 +85,7 @@ const comments = db.prepare(`
           </form>
         ) : (
           <div class="bg-earth-50 rounded-xl p-4 mb-8 text-center">
-            <p class="text-sm text-earth-500"><a href="/api/auth/sign-in" class="text-brand-600 font-medium">Sign in</a> to comment.</p>
+            <p class="text-sm text-earth-500"><a href="/sign-in" class="text-brand-600 font-medium">Sign in</a> to comment.</p>
           </div>
         )}
         {Array.isArray(comments.results) && comments.results.map((c: any) => (
