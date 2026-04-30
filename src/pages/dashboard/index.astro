@@ -8,74 +8,86 @@ export const prerender = false;
 
 const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
 
-if (!user) {
-  return Astro.redirect('/sign-in?redirect=/dashboard');
-}
-
 const db = getDB(env);
 
-// Onboarding redirect
-if (!user.location_city || !user.location_state) {
-  return Astro.redirect('/onboarding');
+// Stats (always compute — works with or without user)
+let campaignsList: any[] = [];
+let signaturesList: any[] = [];
+let localList: any[] = [];
+let totalSigsGathered = { count: 0 };
+let myMeasurements = { count: 0 };
+let myTestimonials = { count: 0 };
+let hasSignedNational = false;
+let hasStartedCampaign = false;
+let hasUploadedMeasurement = false;
+let hasWrittenTestimonial = false;
+
+if (user) {
+  const myCampaigns = db.prepare(`
+    SELECT c.*,
+      (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
+    FROM campaigns c
+    WHERE c.organizer_id = ?
+    ORDER BY c.created_at DESC
+  `).bind(user.id).all();
+  campaignsList = (myCampaigns.results || []) as any[];
+
+  const mySignatures = db.prepare(`
+    SELECT s.*, c.title as campaign_title, c.slug as campaign_slug, c.status as campaign_status
+    FROM signatures s
+    LEFT JOIN campaigns c ON s.campaign_id = c.id
+    WHERE s.email = ?
+    ORDER BY s.created_at DESC
+  `).bind(user.email).all();
+  signaturesList = (mySignatures.results || []) as any[];
+
+  myMeasurements = db.prepare('SELECT COUNT(*) as count FROM measurements WHERE user_id = ?').bind(user.id).first() as any;
+  myTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials WHERE user_id = ?').bind(user.id).first() as any;
+
+  totalSigsGathered = db.prepare(`
+    SELECT COUNT(*) as count FROM signatures s
+    JOIN campaigns c ON s.campaign_id = c.id
+    WHERE c.organizer_id = ?
+  `).bind(user.id).first() as any;
+
+  hasSignedNational = signaturesList.some(s => s.campaign_slug === 'national-quiet-neighborhoods-petition');
+  hasStartedCampaign = campaignsList.length > 0;
+  hasUploadedMeasurement = (myMeasurements?.count || 0) > 0;
+  hasWrittenTestimonial = (myTestimonials?.count || 0) > 0;
+
+  if (user.location_state) {
+    const localCampaigns = db.prepare(`
+      SELECT c.*, u.display_name as organizer_name,
+        (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
+      FROM campaigns c
+      LEFT JOIN users u ON c.organizer_id = u.id
+      WHERE c.location_state = ? AND c.status = 'active' AND c.organizer_id != ?
+      ORDER BY c.created_at DESC
+      LIMIT 4
+    `).bind(user.location_state, user.id).all();
+    localList = (localCampaigns.results || []) as any[];
+  }
 }
 
-// User stats
-const myCampaigns = db.prepare(`
-  SELECT c.*,
-    (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
-  FROM campaigns c
-  WHERE c.organizer_id = ?
-  ORDER BY c.created_at DESC
-`).bind(user.id).all();
-
-const mySignatures = db.prepare(`
-  SELECT s.*, c.title as campaign_title, c.slug as campaign_slug, c.status as campaign_status
-  FROM signatures s
-  LEFT JOIN campaigns c ON s.campaign_id = c.id
-  WHERE s.email = ?
-  ORDER BY s.created_at DESC
-`).bind(user.email).all();
-
-const myMeasurements = db.prepare('SELECT COUNT(*) as count FROM measurements WHERE user_id = ?').bind(user.id).first() as any;
-const myTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials WHERE user_id = ?').bind(user.id).first() as any;
-
-const totalSigsGathered = db.prepare(`
-  SELECT COUNT(*) as count FROM signatures s
-  JOIN campaigns c ON s.campaign_id = c.id
-  WHERE c.organizer_id = ?
-`).bind(user.id).first() as any;
-
-const campaignsList = (myCampaigns.results || []) as any[];
-const signaturesList = (mySignatures.results || []) as any[];
-
-// Local campaigns (in user's state)
-const localCampaigns = db.prepare(`
-  SELECT c.*, u.display_name as organizer_name,
-    (SELECT COUNT(*) FROM signatures WHERE campaign_id = c.id) as signature_count
-  FROM campaigns c
-  LEFT JOIN users u ON c.organizer_id = u.id
-  WHERE c.location_state = ? AND c.status = 'active' AND c.organizer_id != ?
-  ORDER BY c.created_at DESC
-  LIMIT 4
-`).bind(user.location_state, user.id).all();
-
-const localList = (localCampaigns.results || []) as any[];
-
-// Determine action prompts
-const hasSignedNational = signaturesList.some(s => s.campaign_slug === 'national-quiet-neighborhoods-petition');
-const hasStartedCampaign = campaignsList.length > 0;
-const hasUploadedMeasurement = (myMeasurements?.count || 0) > 0;
-const hasWrittenTestimonial = (myTestimonials?.count || 0) > 0;
-
-// Just onboarded?
 const justOnboarded = Astro.url.searchParams.get('onboarded') === '1';
+const needsSignIn = !user;
 ---
 
-<Layout title="Dashboard" description="Your dashboard" user={user}>
+<Layout title="Dashboard" description="Your dashboard">
 
 <section class="section">
   <div class="container-narrow">
 
+    {needsSignIn ? (
+      <div class="bg-accent-50 border-2 border-accent-200 rounded-2xl p-8 mb-12 text-center">
+        <div class="text-3xl mb-3">🌱</div>
+        <h1 class="text-2xl font-display font-bold text-brand-900 mb-2">Welcome to Quiet The Mowers</h1>
+        <p class="text-earth-500 mb-6 max-w-md mx-auto">Sign in to track your campaigns, see your signatures, and get personalized action prompts.</p>
+        <a href="/sign-in" class="btn-accent text-lg px-8 py-4">Sign In to Get Started</a>
+        <p class="text-xs text-earth-400 mt-4">Don't have an account? <a href="/sign-up" class="text-brand-600 font-medium">Create one</a></p>
+      </div>
+    ) : (
+      <>
     <!-- Welcome banner -->
     {justOnboarded ? (
       <div class="bg-brand-50 border border-brand-200 rounded-2xl p-5 mb-8 flex items-center gap-4">
@@ -261,6 +273,8 @@ const justOnboarded = Astro.url.searchParams.get('onboarded') === '1';
         </a>
       </div>
     </div>
+    </>
+    )}
   </div>
 </section>
 

@@ -8,14 +8,22 @@ const rootConfig = join(process.cwd(), 'wrangler.json');
 const entryPath = join(distPath, 'server', 'entry.mjs');
 
 try {
-  // Patch worker entry to copy env to process.env (Clerk needs this)
+  // Patch worker entry to copy env to process.env inside the handler
   let entry = readFileSync(entryPath, 'utf-8');
-  entry = `// Shim: copy Worker env to process.env for Clerk/Node compat
-import { env } from 'cloudflare:workers';
-Object.assign(process.env, Object.fromEntries(
-  Object.entries(env).filter(([_,v]) => typeof v === 'string')
-));
-${entry}`;
+
+  // Find the default export function and inject env shim
+  entry = entry.replace(
+    'export {',
+    `// Inject env vars into process.env at handler time (not module scope)
+import { env as workerEnv } from 'cloudflare:workers';
+if (workerEnv && Object.keys(workerEnv).length > 0) {
+  Object.assign(globalThis.process.env, Object.fromEntries(
+    Object.entries(workerEnv).filter(([_,v]) => typeof v === 'string')
+  ));
+}
+export {`
+  );
+
   writeFileSync(entryPath, entry);
 
   // Patch wrangler.json
