@@ -1,0 +1,8 @@
+name = "quiet-the-mowers"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-04-30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qtm-db"
+database_id = "qtm-db-prod"
