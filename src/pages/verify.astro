@@ -1,0 +1,89 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getDB } from '../utils/db';
+import { env } from 'cloudflare:workers';
+
+export const prerender = false;
+
+const db = getDB(env);
+const token = Astro.url.searchParams.get('token');
+
+let status: 'success' | 'expired' | 'invalid' | 'already_verified' = 'invalid';
+let campaignTitle = '';
+let campaignSlug = '';
+
+if (token) {
+  const tokenRow = db.prepare(
+    'SELECT * FROM verification_tokens WHERE token = ?'
+  ).bind(token).first() as any;
+
+  if (tokenRow) {
+    if (tokenRow.verified_at) {
+      status = 'already_verified';
+    } else {
+      const expires = new Date(tokenRow.expires_at);
+      if (expires < new Date()) {
+        status = 'expired';
+      } else {
+        // Mark token verified
+        db.prepare("UPDATE verification_tokens SET verified_at = datetime('now') WHERE token = ?").bind(token).run();
+        // Mark signature verified
+        if (tokenRow.signature_id) {
+          db.prepare("UPDATE signatures SET verified_at = datetime('now') WHERE id = ?").bind(tokenRow.signature_id).run();
+
+          const sig = db.prepare('SELECT s.*, c.title as campaign_title, c.slug as campaign_slug FROM signatures s JOIN campaigns c ON s.campaign_id = c.id WHERE s.id = ?').bind(tokenRow.signature_id).first() as any;
+          if (sig) {
+            campaignTitle = sig.campaign_title;
+            campaignSlug = sig.campaign_slug;
+          }
+        }
+        status = 'success';
+      }
+    }
+  }
+}
+---
+
+<Layout title="Verify Email" description="Confirm your signature">
+  <section class="section">
+    <div class="container-narrow text-center">
+      {status === 'success' && (
+        <>
+          <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <h1 class="text-3xl font-display font-bold text-brand-900 mb-4">Email Verified!</h1>
+          <p class="text-lg text-earth-600 mb-8 max-w-md mx-auto">
+            Your signature for <strong>{campaignTitle}</strong> is now confirmed and counted.
+          </p>
+          <a href={campaignSlug ? `/campaigns/${campaignSlug}` : '/campaigns'} class="btn-primary">
+            View Campaign
+          </a>
+        </>
+      )}
+      {status === 'already_verified' && (
+        <>
+          <h1 class="text-3xl font-display font-bold text-brand-900 mb-4">Already Verified</h1>
+          <p class="text-lg text-earth-600 mb-8">This signature has already been confirmed.</p>
+          <a href="/campaigns" class="btn-primary">Browse Campaigns</a>
+        </>
+      )}
+      {status === 'expired' && (
+        <>
+          <h1 class="text-3xl font-display font-bold text-brand-900 mb-4">Link Expired</h1>
+          <p class="text-lg text-earth-600 mb-8">This verification link has expired. Please sign the petition again to receive a new link.</p>
+          <a href="/petition" class="btn-primary">Sign National Petition</a>
+        </>
+      )}
+      {status === 'invalid' && (
+        <>
+          <h1 class="text-3xl font-display font-bold text-brand-900 mb-4">Invalid Link</h1>
+          <p class="text-lg text-earth-600 mb-8">This verification link isn't valid. Please check your email or sign again.</p>
+          <a href="/" class="btn-primary">Go Home</a>
+        </>
+      )}
+    </div>
+  </section>
+</Layout>

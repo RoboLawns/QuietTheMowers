@@ -4,6 +4,7 @@ import { getCurrentUser, type AuthUser } from '../../../utils/auth';
 import { getDB } from '../../../utils/db';
 import { env } from 'cloudflare:workers';
 import { sendSignatureConfirmation } from '../../../utils/email';
+import { sendVerificationEmail, generateToken } from '../../../utils/verification';
 
 export const prerender = false;
 
@@ -46,6 +47,14 @@ if (Astro.request.method === 'POST') {
           'INSERT INTO signatures (id, campaign_id, name, email, zip, comment, display_publicly) VALUES (?, ?, ?, ?, ?, ?, ?)'
         ).bind(id, campaign.id, name, email, zip || null, comment || null, 1).run();
         justSigned = true;
+
+        const verifyToken = generateToken();
+        const tokenId = crypto.randomUUID();
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        db.prepare('INSERT INTO verification_tokens (id, email, signature_id, token, type, expires_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(tokenId, email, id, verifyToken, 'signature', expires).run();
+
+        sendVerificationEmail(env, email, name, verifyToken, campaign.title).catch(() => {});
         sendSignatureConfirmation(env, email, name, campaign.title, slug || '').catch(() => {});
       }
     }

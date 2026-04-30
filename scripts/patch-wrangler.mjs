@@ -32,6 +32,11 @@ ${entry}`;
     { binding: 'SESSION', id: 'cc41ce95d66c419e8bf05250cf2f0a0a' },
   ];
 
+  // R2 bucket for image uploads
+  config.r2_buckets = [
+    { binding: 'UPLOADS', bucket_name: 'qtm-uploads' },
+  ];
+
   writeFileSync(serverConfig, JSON.stringify(config, null, 2));
   writeFileSync(rootConfig, JSON.stringify(config, null, 2));
   console.log('✓ Patched wrangler.json + env shim for Worker deploy');

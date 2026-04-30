@@ -1,13 +1,14 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getDB } from '../../../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-const db = getDBFromLocals(Astro.locals);
+const db = getDB(env);
 const { username } = Astro.params;
 
-// Find user by display_name slug
+// Find user by username (preferred) or display_name slug fallback
 const profileUser = db.prepare(`
   SELECT u.*,
     (SELECT COUNT(*) FROM campaigns WHERE organizer_id = u.id) as campaigns_started,
@@ -16,8 +17,9 @@ const profileUser = db.prepare(`
     (SELECT COUNT(*) FROM testimonials WHERE user_id = u.id AND status = 'approved') as testimonials_written,
     (SELECT COUNT(*) FROM measurements WHERE user_id = u.id) as measurements_uploaded
   FROM users u
-  WHERE LOWER(REPLACE(u.display_name, ' ', '-')) = LOWER(?)
-`).bind(username).first() as any;
+  WHERE u.username = ? OR LOWER(REPLACE(u.display_name, ' ', '-')) = LOWER(?)
+  LIMIT 1
+`).bind(username, username).first() as any;
 
 if (!profileUser) {
   return new Response(null, { status: 302, headers: { Location: '/' } });

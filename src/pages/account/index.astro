@@ -1,0 +1,138 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser, type AuthUser } from '../../utils/auth';
+import { getDB } from '../../utils/db';
+import { env } from 'cloudflare:workers';
+
+export const prerender = false;
+
+const user = await getCurrentUser(Astro.locals, env) as AuthUser | null;
+
+if (!user) {
+  return Astro.redirect('/sign-in?redirect=/account');
+}
+
+const db = getDB(env);
+
+let message = '';
+let messageType: 'success' | 'error' = 'success';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const username = formData.get('username')?.toString()?.trim()?.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const displayName = formData.get('display_name')?.toString()?.trim();
+    const bio = formData.get('bio')?.toString()?.trim();
+    const city = formData.get('location_city')?.toString()?.trim();
+    const state = formData.get('location_state')?.toString()?.trim()?.toUpperCase();
+    const emailSubscribed = formData.get('email_subscribed') ? 1 : 0;
+
+    if (username && username.length < 3) {
+      message = 'Username must be at least 3 characters.';
+      messageType = 'error';
+    } else {
+      // Check username uniqueness
+      if (username) {
+        const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').bind(username, user.id).first();
+        if (existing) {
+          message = 'That username is already taken.';
+          messageType = 'error';
+        }
+      }
+      if (!message) {
+        db.prepare(
+          `UPDATE users SET username = ?, display_name = ?, bio = ?, location_city = ?, location_state = ?, email_subscribed = ?, updated_at = datetime('now') WHERE id = ?`
+        ).bind(
+          username || null,
+          displayName || user.displayName,
+          bio || null,
+          city || null,
+          state || null,
+          emailSubscribed,
+          user.id
+        ).run();
+        message = 'Profile saved!';
+      }
+    }
+  } catch (e: any) {
+    message = 'Failed to save: ' + e.message;
+    messageType = 'error';
+  }
+}
+
+const profile = db.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first() as any;
+---
+
+<Layout title="My Account" description="Manage your profile" user={user}>
+<section class="section">
+  <div class="container-narrow">
+    <a href="/dashboard" class="text-brand-600 text-sm font-medium hover:text-brand-800 mb-8 inline-flex items-center gap-1">&larr; Dashboard</a>
+
+    <h1 class="text-3xl font-display font-bold text-brand-900 mb-2">My Account</h1>
+    <p class="text-earth-500 mb-10">Manage your profile, location, and email preferences.</p>
+
+    {message && (
+      <div class={`rounded-xl p-4 mb-6 text-sm ${messageType === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+        {message}
+      </div>
+    )}
+
+    <form method="POST" class="space-y-6">
+      <div class="bg-white border border-earth-200 rounded-2xl p-6">
+        <h2 class="text-lg font-display font-bold text-brand-900 mb-4">Public Profile</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="display_name" class="block text-sm font-medium text-earth-700 mb-1.5">Display Name</label>
+            <input type="text" id="display_name" name="display_name" value={profile?.display_name || ''} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="username" class="block text-sm font-medium text-earth-700 mb-1.5">Username</label>
+            <div class="flex">
+              <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-earth-300 bg-earth-50 text-earth-500 text-sm">quietthemowers.com/u/</span>
+              <input type="text" id="username" name="username" value={profile?.username || ''} pattern="[a-z0-9-]+" placeholder="your-name" class="flex-1 rounded-r-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+            </div>
+            <p class="text-xs text-earth-400 mt-1">Lowercase, numbers, hyphens only. Used for your public profile URL.</p>
+          </div>
+          <div>
+            <label for="bio" class="block text-sm font-medium text-earth-700 mb-1.5">Bio</label>
+            <textarea id="bio" name="bio" rows={3} maxlength={300} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Tell people who you are and why you're here.">{profile?.bio || ''}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-earth-200 rounded-2xl p-6">
+        <h2 class="text-lg font-display font-bold text-brand-900 mb-4">Location</h2>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label for="location_city" class="block text-sm font-medium text-earth-700 mb-1.5">City</label>
+            <input type="text" id="location_city" name="location_city" value={profile?.location_city || ''} class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label for="location_state" class="block text-sm font-medium text-earth-700 mb-1.5">State</label>
+            <input type="text" id="location_state" name="location_state" value={profile?.location_state || ''} maxlength="2" class="w-full rounded-lg border border-earth-300 px-4 py-2.5 text-earth-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-earth-200 rounded-2xl p-6">
+        <h2 class="text-lg font-display font-bold text-brand-900 mb-4">Email</h2>
+        <p class="text-sm text-earth-500 mb-4">{user.email}</p>
+        <label class="flex items-start gap-3">
+          <input type="checkbox" id="email_subscribed" name="email_subscribed" checked={Boolean(profile?.email_subscribed)} class="mt-1" />
+          <div>
+            <span class="text-sm font-medium text-earth-700">Send me the monthly newsletter</span>
+            <p class="text-xs text-earth-500">Wins, new campaigns, new ordinances. About once a month, never spam.</p>
+          </div>
+        </label>
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit" class="btn-primary">Save Changes</button>
+        {profile?.username && (
+          <a href={`/u/${profile.username}`} class="btn-secondary">View Public Profile</a>
+        )}
+      </div>
+    </form>
+  </div>
+</section>
+</Layout>
