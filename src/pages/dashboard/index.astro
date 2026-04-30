@@ -37,8 +37,15 @@ if (clerkUserId && !user) {
 const db = getDB(env);
 
 // Re-fetch user after sync
-const freshUser = clerkUserId ? (await getCurrentUser(Astro.locals, env)) : user;
+let freshUser = clerkUserId ? (await getCurrentUser(Astro.locals, env)) : user;
 const needsSignIn = !freshUser && !clerkUserId;
+
+// If Clerk session exists but no DB user, show basic dashboard from cookie info
+const sessionUser = clerkUserId ? { 
+  id: clerkUserId, 
+  email: clerkEmail || `${clerkUserId}@clerk.user`,
+  displayName: clerkEmail?.split('@')[0] || 'User' 
+} : null;
 
 // Stats
 let campaignsList: any[] = [];
@@ -305,7 +312,14 @@ const justOnboarded = Astro.url.searchParams.get('onboarded') === '1';
     </div>
     </>
     )}
-    {!freshUser && !needsSignIn ? (
+    {!freshUser && !needsSignIn && sessionUser ? (
+      <div class="text-center py-12">
+        <p class="text-2xl font-bold text-brand-900 mb-2">Hi, {sessionUser.displayName}!</p>
+        <p class="text-earth-500 mb-8">Your account is being set up. Check back in a minute.</p>
+        <a href="/petition" class="btn-accent">Sign the National Petition</a>
+      </div>
+    ) : null}
+    {!freshUser && !needsSignIn && !sessionUser ? (
       <div class="text-center py-12">
         <p class="text-earth-400">Loading your dashboard...</p>
       </div>
