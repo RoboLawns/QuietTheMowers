@@ -22,10 +22,27 @@ export async function getCurrentUser(locals: App.Locals, env?: any): Promise<Aut
     if (typeof l?.auth === 'function') {
       const authResult = await l.auth();
       const userId = authResult?.userId;
-      if (userId) {
-        const db = env ? getDB(env) : getDB(null);
-        const result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
-        const user = result?.results?.[0] as any;
+      if (userId && env) {
+        const db = getDB(env);
+        let result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
+        let user = result?.results?.[0] as any;
+
+        // Auto-sync: if user exists in Clerk but not in D1, create them
+        if (!user) {
+          const clerkUser = authResult.user || (l.currentUser ? await l.currentUser() : null);
+          const email = clerkUser?.emailAddresses?.[0]?.emailAddress || authResult.sessionClaims?.email || `user-${userId}@unknown`;
+          const name = clerkUser?.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : (authResult.sessionClaims?.name || 'User');
+          const imageUrl = clerkUser?.imageUrl || '';
+
+          const id = crypto.randomUUID();
+          db.prepare(
+            'INSERT INTO users (id, auth_provider_id, email, display_name, avatar_url, role) VALUES (?, ?, ?, ?, ?, ?)'
+          ).bind(id, userId, email, name, imageUrl, 'user').run();
+
+          result = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(userId).all();
+          user = result?.results?.[0] as any;
+        }
+
         if (user) {
           return {
             id: user.id,
@@ -39,8 +56,8 @@ export async function getCurrentUser(locals: App.Locals, env?: any): Promise<Aut
         }
       }
     }
-  } catch {
-    // Clerk not configured or DB not available
+  } catch (e) {
+    console.error('getCurrentUser error:', e);
   }
 
   return null;
