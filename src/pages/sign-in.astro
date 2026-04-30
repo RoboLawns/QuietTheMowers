@@ -2,10 +2,11 @@
 import Layout from '../layouts/Layout.astro';
 import { getCurrentUser } from '../utils/auth';
 import { SignIn } from '@clerk/astro/components';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
-const user = await getCurrentUser(Astro.locals);
+const user = await getCurrentUser(Astro.locals, env);
 
 if (user) {
   return Astro.redirect('/dashboard');
@@ -19,7 +20,7 @@ if (user) {
         <h1 class="text-3xl font-display font-bold text-brand-900 mb-3">Welcome Back</h1>
         <p class="text-earth-500">Sign in to manage your campaigns and track your impact.</p>
       </div>
-      <SignIn signUpUrl="/sign-up" afterSignInUrl="/dashboard" />
+      <SignIn signUpUrl="/sign-up" afterSignInUrl="/dashboard" afterSignOutUrl="/" />
       <p class="text-center text-sm text-earth-400 mt-6">
         Don't have an account? <a href="/sign-up" class="text-brand-600 hover:text-brand-800 font-medium">Sign up</a>
       </p>

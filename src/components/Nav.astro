@@ -1,11 +1,5 @@
 ---
-import type { AuthUser } from '../utils/auth';
-
-interface Props {
-  user?: AuthUser | null;
-}
-
-const { user } = Astro.props;
+import { UserButton, SignInButton } from '@clerk/astro/components';
 
 const navLinks = [
   { href: '/manifesto', label: 'Manifesto' },
@@ -37,34 +31,20 @@ const navLinks = [
       </div>
 
       <div class="flex items-center gap-3">
-        {user ? (
-          <>
-            <a href="/dashboard" class="text-sm font-medium text-earth-600 hover:text-brand-700 hidden sm:inline-flex items-center gap-2">
-              <div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-xs">
-                {(user.displayName || 'U').charAt(0).toUpperCase()}
-              </div>
-              <span>{user.displayName || 'Dashboard'}</span>
-            </a>
-            <a href="/campaigns/new" class="btn-accent text-sm px-4 py-2">
-              Start a Campaign
-            </a>
-            <a href="/api/auth/sign-out" class="text-sm text-earth-500 hover:text-earth-700 px-2">
-              Sign Out
-            </a>
-          </>
-        ) : (
-          <>
-            <a href="/campaigns" class="btn-primary text-sm px-4 py-2 hidden sm:inline-flex">
-              Find a Campaign
-            </a>
-            <a href="/sign-in" class="text-sm font-medium text-brand-700 hover:text-brand-900 px-3 py-2">
-              Sign In
-            </a>
-            <a href="/campaigns/new" class="btn-accent text-sm px-4 py-2">
-              Start One
-            </a>
-          </>
-        )}
+        <SignInButton mode="modal">
+          <a href="/sign-in" class="text-sm font-medium text-brand-700 hover:text-brand-900 px-3 py-2 cursor-pointer hidden">
+            Sign In
+          </a>
+        </SignInButton>
+        <a href="/dashboard" class="text-sm font-medium text-brand-700 hover:text-brand-900 px-3 py-2">
+          Dashboard
+        </a>
+        <a href="/campaigns/new" class="btn-accent text-sm px-4 py-2">
+          Start One
+        </a>
+        <div class="ml-2">
+          <UserButton afterSignOutUrl="/" />
+        </div>
 
         <button
           id="mobile-menu-btn"
@@ -89,20 +69,12 @@ const navLinks = [
             {link.label}
           </a>
         ))}
-        {user ? (
-          <>
-            <a href="/dashboard" class="px-3 py-2 rounded-lg text-sm font-medium text-brand-700 hover:bg-brand-50 transition-colors">
-              Dashboard
-            </a>
-            <a href="/api/auth/sign-out" class="px-3 py-2 rounded-lg text-sm font-medium text-earth-500 hover:bg-earth-50 transition-colors">
-              Sign Out
-            </a>
-          </>
-        ) : (
-          <a href="/campaigns" class="btn-primary text-sm mt-2 w-full justify-center">
-            Find a Campaign
-          </a>
-        )}
+        <a href="/dashboard" class="px-3 py-2 rounded-lg text-sm font-medium text-brand-700 hover:bg-brand-50 transition-colors">
+          Dashboard
+        </a>
+        <a href="/campaigns/new" class="btn-accent text-sm mt-2 w-full justify-center">
+          Start a Campaign
+        </a>
       </div>
     </div>
   </div>
