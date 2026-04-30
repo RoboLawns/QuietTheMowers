@@ -1,8 +1,12 @@
 // Post-build: strip Worker-only fields from wrangler.json for Pages compatibility
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-const wranglerPath = join(process.cwd(), 'dist', 'server', 'wrangler.json');
+const distPath = join(process.cwd(), 'dist');
+const serverPath = join(distPath, 'server');
+const functionsPath = join(distPath, 'functions');
+
+const wranglerPath = join(serverPath, 'wrangler.json');
 
 try {
   const config = JSON.parse(readFileSync(wranglerPath, 'utf-8'));
@@ -31,6 +35,15 @@ try {
 
   writeFileSync(wranglerPath, JSON.stringify(config, null, 2));
   console.log('✓ Patched wrangler.json for Cloudflare Pages');
+
+  // Move server/ to functions/ so Cloudflare Pages detects it
+  if (existsSync(serverPath)) {
+    if (existsSync(functionsPath)) {
+      rmSync(functionsPath, { recursive: true });
+    }
+    renameSync(serverPath, functionsPath);
+    console.log('✓ Moved dist/server/ to dist/functions/');
+  }
 } catch (e) {
   console.error('Failed to patch wrangler.json:', e);
   process.exit(1);
