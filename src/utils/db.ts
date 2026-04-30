@@ -27,50 +27,17 @@ export function getDBFromLocals(locals: any) {
     return locals.runtime.env.DB;
   }
 
-  // Local Node.js development with better-sqlite3
-  try {
-    const { getLocalDB } = require('./local-db');
-    const db = getLocalDB();
-
-    return {
-      prepare(sql: string) {
-        const stmt = db.prepare(sql);
-        let bound: unknown[] = [];
-        return {
-          bind(...values: unknown[]) { bound = values; return this; },
-          first<T = Record<string, unknown>>() { return stmt.get(...bound) as T | null; },
-          all<T = Record<string, unknown>>() {
-            const results = stmt.all(...bound) as T[];
-            return { results, success: true, meta: { duration: 0, last_row_id: 0, changes: 0 } };
-          },
-          run() {
-            const result = stmt.run(...bound);
-            return { results: [], success: true, meta: { duration: 0, last_row_id: Number(result.lastInsertRowid), changes: result.changes } };
-          },
-        };
-      },
-      exec(sql: string) {
-        db.exec(sql);
-        return { results: [], success: true, meta: { duration: 0, last_row_id: 0, changes: 0 } };
-      },
-    };
-  } catch {
-    // Cloudflare worker context (no native modules) — return mock
-    return createMockDB();
-  }
-}
-
-function createMockDB() {
+  // No D1 available — return mock that doesn't crash
   return {
-    prepare(sql: string) {
+    prepare(_sql: string) {
       return {
-        bind(...values: unknown[]) { return this; },
+        bind(..._values: unknown[]) { return this; },
         first() { return null; },
         all() { return { results: [], success: true, meta: { duration: 0, last_row_id: 0, changes: 0 } }; },
         run() { return { results: [], success: true, meta: { duration: 0, last_row_id: 0, changes: 0 } }; },
       };
     },
-    exec(sql: string) {
+    exec(_sql: string) {
       return { results: [], success: true, meta: { duration: 0, last_row_id: 0, changes: 0 } };
     },
   };
