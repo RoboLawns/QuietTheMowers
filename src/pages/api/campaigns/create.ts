@@ -1,12 +1,12 @@
 import type { APIRoute } from 'astro';
 import { getAuthFromRequest } from '../../../utils/auth';
 import { getDB } from '../../../utils/db';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, redirect }) => {
-  // Auth from cookie
-  const user = getAuthFromRequest(request);
+  const user = getAuthFromRequest(request, env);
 
   if (!user) {
     return new Response(JSON.stringify({ error: 'Please sign in' }), { status: 401 });

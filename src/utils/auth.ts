@@ -13,9 +13,8 @@ function decodeJWT(token: string): Record<string, any> | null {
   } catch { return null; }
 }
 
-// Extract Clerk user from cookies + sync to D1
-// Works without middleware — reads __session cookie directly
-export function getAuthFromRequest(request: Request, env: any): AuthUser | null {
+// Extract Clerk user from cookies + sync to D1 (if env provided)
+export function getAuthFromRequest(request: Request, env?: any): AuthUser | null {
   try {
     const cookie = request.headers.get('cookie') || '';
     const match = cookie.match(/__session=([^;]+)/);
@@ -28,24 +27,35 @@ export function getAuthFromRequest(request: Request, env: any): AuthUser | null 
     const email = (payload.email as string) || `${clerkId}@clerk.user`;
     const name = (payload.name as string) || email.split('@')[0] || 'User';
 
-    // Sync to D1
-    const db = getDB(env);
-    let row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkId).first() as any;
-    if (!row) {
-      db.prepare('INSERT INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)')
-        .bind(crypto.randomUUID(), clerkId, email, name, 'user').run();
-      row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkId).first() as any;
+    // Sync to D1 only if env provided (otherwise return cookie-only info)
+    if (env) {
+      const db = getDB(env);
+      let row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkId).first() as any;
+      if (!row) {
+        db.prepare('INSERT INTO users (id, auth_provider_id, email, display_name, role) VALUES (?, ?, ?, ?, ?)')
+          .bind(crypto.randomUUID(), clerkId, email, name, 'user').run();
+        row = db.prepare('SELECT * FROM users WHERE auth_provider_id = ?').bind(clerkId).first() as any;
+      }
+      if (row) {
+        return {
+          id: row.id,
+          email: row.email,
+          displayName: row.display_name || name,
+          avatarUrl: row.avatar_url || '',
+          role: row.role || 'user',
+          location_city: row.location_city,
+          location_state: row.location_state,
+        };
+      }
     }
-    if (!row) return null;
 
+    // Fallback: cookie-only auth (no D1 sync)
     return {
-      id: row.id,
-      email: row.email,
-      displayName: row.display_name || name,
-      avatarUrl: row.avatar_url || '',
-      role: row.role || 'user',
-      location_city: row.location_city,
-      location_state: row.location_state,
+      id: clerkId,
+      email,
+      displayName: name,
+      avatarUrl: '',
+      role: 'user',
     };
   } catch { return null; }
 }
