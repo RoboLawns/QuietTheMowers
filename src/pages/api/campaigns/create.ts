@@ -32,9 +32,9 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     const db = getDB(env);
 
     // Check slug uniqueness
-    const existing = db.prepare('SELECT id FROM campaigns WHERE slug = ?').bind(slug).first();
+    const existing = db.prepare('SELECT slug FROM campaigns WHERE slug = ?').bind(slug).first();
     if (existing) {
-      return new Response(JSON.stringify({ error: 'This URL slug is already taken.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: `The slug "${slug}" is already taken. Try something like "${slug}-2" or "${slug}-my-city".` }), { status: 400 });
     }
 
     const id = crypto.randomUUID();
